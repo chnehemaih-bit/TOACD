@@ -1,0 +1,318 @@
+{
+  "history": [
+    {
+      "filename": "test1.cpp",
+      "error_type": "INVALID_LOOP",
+      "confidence": 95.0,
+      "detection_time": 0.04708099365234375,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776716207.5295238
+    },
+    {
+      "filename": "test_missing_semi.cpp",
+      "error_type": "MISSING_SEMICOLON",
+      "confidence": 95.0,
+      "detection_time": 0.060710906982421875,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776716212.854306
+    },
+    {
+      "filename": "test_unmatched_brace.cpp",
+      "error_type": "UNMATCHED_BRACE",
+      "confidence": 95.0,
+      "detection_time": 0.06778383255004883,
+      "fix_attempted": false,
+      "fix_compiled": false,
+      "timestamp": 1776716216.375471
+    },
+    {
+      "filename": "test1.cpp",
+      "error_type": "INVALID_LOOP",
+      "confidence": 95.0,
+      "detection_time": 0.10898590087890625,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776716313.35492
+    },
+    {
+      "filename": "test1.cpp",
+      "error_type": "INVALID_LOOP",
+      "confidence": 95.0,
+      "detection_time": 0.05090785026550293,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776716363.4839602
+    },
+    {
+      "filename": "test1.cpp",
+      "error_type": "INVALID_LOOP",
+      "confidence": 95.0,
+      "detection_time": 0.05070185661315918,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776750396.043392
+    },
+    {
+      "filename": "test_while_loop.cpp",
+      "error_type": "INVALID_LOOP",
+      "confidence": 95.0,
+      "detection_time": 0.04882979393005371,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776750475.2055712
+    },
+    {
+      "filename": "test_switch_error.cpp",
+      "error_type": "INVALID_SWITCH",
+      "confidence": 95.0,
+      "detection_time": 0.03598189353942871,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776750537.158654
+    },
+    {
+      "filename": "test_switch_error.cpp",
+      "error_type": "INVALID_SWITCH",
+      "confidence": 95.0,
+      "detection_time": 0.05836200714111328,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776750617.6326988
+    },
+    {
+      "filename": "test1.cpp",
+      "error_type": "INVALID_LOOP",
+      "confidence": 95.0,
+      "detection_time": 0.05990791320800781,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776753327.545196
+    },
+    {
+      "filename": "test1.cpp",
+      "error_type": "INVALID_LOOP",
+      "confidence": 95.0,
+      "detection_time": 0.048660993576049805,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776753712.92073
+    },
+    {
+      "filename": "test1.cpp",
+      "error_type": "INVALID_LOOP",
+      "confidence": 95.0,
+      "detection_time": 0.048776865005493164,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776754209.73841
+    },
+    {
+      "filename": "test_switch_error.cpp",
+      "error_type": "INVALID_SWITCH",
+      "confidence": 95.0,
+      "detection_time": 0.04920196533203125,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776754260.084621
+    },
+    {
+      "filename": "test2.cpp",
+      "error_type": "MISPLACED_KEYWORD",
+      "confidence": 95.0,
+      "detection_time": 0.05038619041442871,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776754336.0072372
+    },
+    {
+      "filename": "test_while_loop.cpp",
+      "error_type": "INVALID_LOOP",
+      "confidence": 95.0,
+      "detection_time": 0.04588794708251953,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776756177.536343
+    },
+    {
+      "filename": "test_while_loop.cpp",
+      "error_type": "INVALID_LOOP",
+      "confidence": 95.0,
+      "detection_time": 0.04767489433288574,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776771854.805571
+    },
+    {
+      "filename": "test_switch_error.cpp",
+      "error_type": "INVALID_SWITCH",
+      "confidence": 95.0,
+      "detection_time": 0.05965089797973633,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776771875.142804
+    },
+    {
+      "filename": "test_all_errors.cpp",
+      "error_type": "MISSING_SEMICOLON",
+      "confidence": 95.0,
+      "detection_time": 0.04852104187011719,
+      "fix_attempted": true,
+      "fix_compiled": false,
+      "timestamp": 1776771915.958551
+    },
+    {
+      "filename": "test_class_error.cpp",
+      "error_type": "INVALID_CLASS_DECL",
+      "confidence": 95.0,
+      "detection_time": 0.05032181739807129,
+      "fix_attempted": true,
+      "fix_compiled": false,
+      "timestamp": 1776771951.030377
+    },
+    {
+      "filename": "test_invalid_array.cpp",
+      "error_type": "INVALID_ARRAY_DECL",
+      "confidence": 95.0,
+      "detection_time": 0.05834317207336426,
+      "fix_attempted": true,
+      "fix_compiled": false,
+      "timestamp": 1776772091.81916
+    },
+    {
+      "filename": "test_invalid_array.cpp",
+      "error_type": "INVALID_ARRAY_DECL",
+      "confidence": 95.0,
+      "detection_time": 0.04903602600097656,
+      "fix_attempted": true,
+      "fix_compiled": false,
+      "timestamp": 1776772204.6982641
+    },
+    {
+      "filename": "test_invalid_array.cpp",
+      "error_type": null,
+      "confidence": 0.0,
+      "detection_time": 0.0,
+      "fix_attempted": true,
+      "fix_compiled": false,
+      "timestamp": 1776772304.894995
+    },
+    {
+      "filename": "test1.cpp",
+      "error_type": "INVALID_LOOP",
+      "confidence": 95.0,
+      "detection_time": 0.045042991638183594,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776772335.281972
+    },
+    {
+      "filename": "test_invalid_array.cpp",
+      "error_type": null,
+      "confidence": 0.0,
+      "detection_time": 0.0,
+      "fix_attempted": true,
+      "fix_compiled": false,
+      "timestamp": 1776772393.40849
+    },
+    {
+      "filename": "test1.cpp",
+      "error_type": "INVALID_LOOP",
+      "confidence": 95.0,
+      "detection_time": 0.05909609794616699,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776774422.492277
+    },
+    {
+      "filename": "test1.cpp",
+      "error_type": "INVALID_LOOP",
+      "confidence": 95.0,
+      "detection_time": 0.058017730712890625,
+      "fix_attempted": false,
+      "fix_compiled": false,
+      "timestamp": 1776833303.61801
+    },
+    {
+      "filename": "test_missing_semi.cpp",
+      "error_type": "MISSING_SEMICOLON",
+      "confidence": 95.0,
+      "detection_time": 0.037541866302490234,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776833353.576863
+    },
+    {
+      "filename": "test_class_error.cpp",
+      "error_type": "INVALID_CLASS_DECL",
+      "confidence": 95.0,
+      "detection_time": 0.04685401916503906,
+      "fix_attempted": true,
+      "fix_compiled": false,
+      "timestamp": 1776833457.524462
+    },
+    {
+      "filename": "test_invalid_array.cpp",
+      "error_type": null,
+      "confidence": 0.0,
+      "detection_time": 0.0,
+      "fix_attempted": true,
+      "fix_compiled": false,
+      "timestamp": 1776833596.601393
+    },
+    {
+      "filename": "test_unmatched_brace.cpp",
+      "error_type": "UNMATCHED_BRACE",
+      "confidence": 95.0,
+      "detection_time": 0.04679608345031738,
+      "fix_attempted": true,
+      "fix_compiled": false,
+      "timestamp": 1776833736.6691022
+    },
+    {
+      "filename": "test_all_errors.cpp",
+      "error_type": "MISSING_SEMICOLON",
+      "confidence": 95.0,
+      "detection_time": 0.04598808288574219,
+      "fix_attempted": true,
+      "fix_compiled": false,
+      "timestamp": 1776833829.019367
+    },
+    {
+      "filename": "test_while_loop.cpp",
+      "error_type": "INVALID_LOOP",
+      "confidence": 95.0,
+      "detection_time": 0.05795788764953613,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776833890.143681
+    },
+    {
+      "filename": "test_extra_tokens.cpp",
+      "error_type": "MISSING_SEMICOLON",
+      "confidence": 95.0,
+      "detection_time": 0.059185028076171875,
+      "fix_attempted": true,
+      "fix_compiled": true,
+      "timestamp": 1776833981.243495
+    },
+    {
+      "filename": "test_invalid_assignment.cpp",
+      "error_type": "INVALID_ASSIGNMENT",
+      "confidence": 95.0,
+      "detection_time": 0.05370974540710449,
+      "fix_attempted": true,
+      "fix_compiled": false,
+      "timestamp": 1776834094.641213
+    }
+  ],
+  "summary": {
+    "total_runs": 34,
+    "total_errors": 31,
+    "avg_confidence": 86.61764705882354,
+    "avg_detection_time": 0.04870306744295008,
+    "fixes_applied": 32,
+    "successful_compilations": 21
+  }
+}

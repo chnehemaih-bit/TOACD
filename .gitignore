@@ -1,0 +1,31 @@
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pkl.tmp
+
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs & temp test scratch scripts
+*.log
+scratch/
+test_scratch.*
+test_code.py
+debug_hang.py
+
+# Binaries & compiled artifacts
+*.exe
+*.out
+*.o
+*.obj
+*.circ
+*.fixed.cpp
+*.fixed.fixed.cpp
+
+# Obsolete backups
+*_old.py
+server2.py
+presentation.key

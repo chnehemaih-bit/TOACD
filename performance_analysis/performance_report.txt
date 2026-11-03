@@ -1,0 +1,26 @@
+============================================================
+C++ SYNTAX ERROR CLASSIFIER PERFORMANCE REPORT
+============================================================
+
+EXECUTION SUMMARY:
+--------------------
+Total execution time: 3.617 seconds
+Files processed: 1
+Errors detected: 1
+Auto-fixes applied: 1
+Successful compilations: 0
+
+ERROR TYPE BREAKDOWN:
+--------------------
+MISSING_SEMICOLON         | Count:   1 | Fix Success:   0.0%
+
+PERFORMANCE METRICS:
+--------------------
+Average detection time: 0.112 seconds
+Min detection time: 0.112 seconds
+Max detection time: 0.112 seconds
+Average confidence score: 32.500
+Median confidence score: 32.500
+Confidence score range: 32.500 - 32.500
+
+Overall success rate: 0.0%

@@ -1,0 +1,1730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Agentic AI — C++ Code Analysis Platform v2</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--bg2:#161b22;--bg3:#21262d;--card:#1c2128;
+  --border:#30363d;--text:#e6edf3;--text2:#7d8590;
+  --blue:#58a6ff;--green:#3fb950;--red:#f85149;
+  --orange:#d29922;--purple:#bc8cff;--teal:#39d353;--yellow:#e3b341;
+  --sidebar:56px;
+}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+/* ── LAYOUT ── */
+#app{display:flex;flex-direction:column;height:100vh}
+header{height:48px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;z-index:10}
+header .logo{font-size:15px;font-weight:700;color:var(--blue);letter-spacing:.5px}
+header .logo span{color:var(--text2);font-weight:400;font-size:12px;margin-left:8px}
+header .status-pill{margin-left:auto;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;background:#1c2128;border:1px solid var(--border);color:var(--text2)}
+header .status-pill.running{border-color:var(--blue);color:var(--blue)}
+header .status-pill.done{border-color:var(--green);color:var(--green)}
+header .status-pill.error{border-color:var(--red);color:var(--red)}
+.body{display:flex;flex:1;overflow:hidden}
+/* ── SIDEBAR ── */
+#sidebar{width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px;flex-shrink:0}
+.sb-item{width:44px;height:44px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:2px;transition:background .15s;position:relative}
+.sb-item:hover{background:var(--bg3)}
+.sb-item.active{background:#1f2d3d;border:1px solid #1a4070}
+.sb-item svg{width:18px;height:18px;stroke:var(--text2);fill:none;stroke-width:1.8;transition:stroke .15s}
+.sb-item.active svg{stroke:var(--blue)}
+.sb-item .label{font-size:9px;color:var(--text2);font-weight:500}
+.sb-item.active .label{color:var(--blue)}
+.sb-badge{position:absolute;top:4px;right:4px;background:var(--red);color:#fff;border-radius:999px;font-size:9px;font-weight:700;padding:0 4px;min-width:14px;text-align:center;display:none}
+.sb-badge.show{display:block}
+/* ── MAIN ── */
+#main{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.section{display:none;height:100%;overflow-y:auto;padding:20px 24px}
+.section.active{display:flex;flex-direction:column;gap:16px}
+/* ── COMMON COMPONENTS ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px}
+.card-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px}
+.page-title{font-size:18px;font-weight:700;color:var(--text)}
+.page-subtitle{font-size:13px;color:var(--text2);margin-top:2px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+.badge-red{background:#2d1117;color:var(--red);border:1px solid #5c1a1a}
+.badge-orange{background:#2d1e00;color:var(--orange);border:1px solid #5c3d00}
+.badge-green{background:#0d2114;color:var(--green);border:1px solid #1a5c2e}
+.badge-blue{background:#0d1d30;color:var(--blue);border:1px solid #1a3d60}
+.badge-purple{background:#1d1030;color:var(--purple);border:1px solid #3d2060}
+.badge-gray{background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+.badge-teal{background:#0d2420;color:var(--teal);border:1px solid #1a5040}
+.badge-yellow{background:#2d2200;color:var(--yellow);border:1px solid #5c4400}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.metric-card{flex:1;min-width:140px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+.metric-val{font-size:22px;font-weight:700;color:var(--text)}
+.metric-label{font-size:11px;color:var(--text2);margin-top:2px}
+btn,.btn{background:var(--blue);color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:opacity .15s,background .15s}
+.btn:hover{opacity:.85}
+.btn-green{background:#238636}
+.btn-gray{background:var(--bg3);color:var(--text);border:1px solid var(--border)}
+.btn-gray:hover{background:var(--border)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-group{display:flex;gap:8px;align-items:center}
+code,pre,.mono{font-family:'JetBrains Mono',monospace}
+.code-block{background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;color:#cdd9e5;line-height:1.6;overflow:auto;white-space:pre}
+.divider{border:none;border-top:1px solid var(--border);margin:4px 0}
+/* ── EDITOR SECTION ── */
+#editor-wrap{position:relative;flex:1;min-height:320px;background:#0d1117;border:1px solid var(--border);border-radius:8px;overflow:hidden;display:flex}
+#line-numbers{padding:12px 8px 12px 12px;color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6;text-align:right;user-select:none;min-width:44px;background:#0d1117;border-right:1px solid var(--border)}
+#code-editor{flex:1;background:transparent;color:#cdd9e5;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6;border:none;outline:none;padding:12px;resize:none;tab-size:4}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+select.lang-select,select.sample-select{background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-family:'Inter',sans-serif;cursor:pointer}
+#console-out{background:#0a0e14;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:12px;max-height:140px;overflow-y:auto;color:var(--text2)}
+.con-line{line-height:1.5}
+.con-line .pre{font-weight:700}
+.pre-lex{color:#58a6ff}.pre-parse{color:#bc8cff}.pre-sem{color:#39d353}
+.pre-repair{color:#3fb950}.pre-sec{color:#f85149}.pre-green{color:#d29922}
+.pre-ok{color:#3fb950}.pre-err{color:#f85149}
+/* ── TOKEN TABLE ── */
+.token-table{width:100%;border-collapse:collapse;font-size:12.5px;font-family:'JetBrains Mono',monospace}
+.token-table th{padding:6px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card)}
+.token-table td{padding:5px 10px;border-bottom:1px solid #1c2128;vertical-align:middle}
+.token-table tr:hover td{background:#1c2128}
+.tok-KEYWORD{color:#cc99cd}.tok-IDENTIFIER{color:#79b8ff}
+.tok-OPERATOR{color:#f8c555}.tok-INTEGER,.tok-FLOAT{color:#9ecbff}
+.tok-STRING,.tok-CHAR{color:#9db1c5}.tok-SEMICOLON{color:var(--text2)}
+.tok-UNKNOWN{color:var(--red)}.tok-HASH{color:var(--text2)}
+.tok-OPEN_PAREN,.tok-CLOSE_PAREN,.tok-OPEN_BRACE,.tok-CLOSE_BRACE,
+.tok-OPEN_BRACKET,.tok-CLOSE_BRACKET{color:#e8bf6a}
+.filter-bar{display:flex;gap:6px;flex-wrap:wrap}
+.filter-btn{padding:4px 12px;border-radius:999px;font-size:12px;font-weight:500;cursor:pointer;background:var(--bg3);color:var(--text2);border:1px solid var(--border);transition:all .15s}
+.filter-btn.active,.filter-btn:hover{background:#1f2d3d;color:var(--blue);border-color:var(--blue)}
+/* ── SYNTAX ERRORS ── */
+.err-card{background:var(--card);border:1px solid #5c1a1a;border-radius:8px;padding:12px 14px;margin-bottom:8px}
+.err-card .err-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.err-card .err-msg{color:var(--text);font-size:13px}
+.err-card .err-snippet{background:#0d1117;border-radius:4px;padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#cdd9e5;margin:6px 0}
+.err-card .err-fix{font-size:12px;color:var(--green);margin-top:4px}
+.grammar-panel{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px}
+.grammar-rule{font-family:'JetBrains Mono',monospace;font-size:12px;color:#cdd9e5;padding:3px 0;border-bottom:1px solid #21262d}
+.grammar-rule:last-child{border-bottom:none}
+.no-errors{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;gap:8px;color:var(--green);font-weight:600;font-size:15px}
+/* ── AST ── */
+.ast-tree{font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px}
+.ast-node{position:relative;padding-left:20px}
+.ast-node::before{content:'';position:absolute;left:6px;top:0;bottom:0;border-left:1px solid var(--border)}
+.ast-node:last-child::before{height:12px}
+.ast-row{display:flex;align-items:center;gap:6px;padding:2px 0;cursor:pointer;border-radius:4px}
+.ast-row:hover{background:#1c2128}
+.ast-toggle{color:var(--text2);font-size:10px;width:12px;display:inline-block;text-align:center}
+.ast-type{font-weight:600;padding:1px 6px;border-radius:4px;font-size:11px}
+.ast-ProgramNode{background:#0d1d30;color:var(--blue)}
+.ast-FunctionDeclNode{background:#1d1030;color:var(--purple)}
+.ast-VarDeclNode{background:#0d2420;color:var(--teal)}
+.ast-ReturnStmtNode{background:#2d1e00;color:var(--orange)}
+.ast-IfStmtNode{background:#2d2200;color:var(--yellow)}
+.ast-WhileStmtNode,.ast-ForStmtNode{background:#2d1e00;color:var(--orange)}
+.ast-CompoundStmtNode{background:var(--bg3);color:var(--text2)}
+.ast-ErrorNode{background:#2d1117;color:var(--red)}
+.ast-AssignExprNode{background:#0d2420;color:var(--teal)}
+.ast-ExprNode,.ast-ExprStmtNode{background:var(--bg3);color:var(--text2)}
+.ast-val{color:var(--text2);font-size:11px}
+.ast-line{color:#3d4d5d;font-size:10px}
+.ast-children{display:block}
+.ast-children.collapsed{display:none}
+/* ── SEMANTIC ── */
+.sem-card{background:var(--card);border-radius:8px;padding:12px 14px;margin-bottom:8px;border-left:3px solid var(--border)}
+.sem-card.ERROR{border-left-color:var(--red)}
+.sem-card.WARNING{border-left-color:var(--orange)}
+.sem-card.INFO{border-left-color:var(--blue)}
+.sem-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.sym-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.sym-table th{padding:6px 10px;text-align:left;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border)}
+.sym-table td{padding:5px 10px;border-bottom:1px solid #21262d;font-family:'JetBrains Mono',monospace;font-size:12px}
+/* ── SECURITY ── */
+.threat-banner{border-radius:10px;padding:18px 20px;display:flex;align-items:center;gap:16px;margin-bottom:4px}
+.threat-banner.SECURE{background:#0d2114;border:1px solid #1a5c2e}
+.threat-banner.MEDIUM{background:#2d1e00;border:1px solid #5c3d00}
+.threat-banner.HIGH,.threat-banner.CRITICAL{background:#2d1117;border:1px solid #5c1a1a}
+.threat-label{font-size:22px;font-weight:800}
+.score-ring{width:64px;height:64px;position:relative;margin-left:auto}
+.score-ring svg{transform:rotate(-90deg)}
+.score-ring .score-val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700}
+.vuln-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px}
+.vuln-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.vuln-cwe{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);margin-left:auto}
+.vuln-section{margin-top:6px}
+.vuln-section-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.vuln-text{font-size:12.5px;color:var(--text);line-height:1.5}
+.hardened-block{background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#cdd9e5;white-space:pre;overflow:auto;max-height:200px;margin-top:6px}
+/* ── GREEN ── */
+.eco-grade{font-size:64px;font-weight:800;line-height:1}
+.eco-A\+,.eco-A{color:var(--green)}
+.eco-B{color:var(--teal)}
+.eco-C{color:var(--yellow)}
+.eco-D,.eco-F{color:var(--red)}
+.score-bar-wrap{background:var(--bg3);border-radius:999px;height:10px;overflow:hidden;margin:8px 0}
+.score-bar{height:100%;border-radius:999px;transition:width .4s ease;background:linear-gradient(90deg,var(--red),var(--orange),var(--green))}
+.rec-list{list-style:none;padding:0}
+.rec-list li{padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);display:flex;align-items:flex-start;gap:8px}
+.rec-list li::before{content:'→';color:var(--blue);font-weight:700;flex-shrink:0}
+/* ── REPAIR ── */
+.repair-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px}
+.rtab{padding:8px 16px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.rtab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.diff-container{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;font-family:'JetBrains Mono',monospace;font-size:12px}
+.diff-side{overflow:auto}
+.diff-header{padding:6px 12px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text2)}
+.diff-line{padding:1px 12px;white-space:pre;line-height:1.6}
+.diff-line.del{background:#2d1117;color:#f97583}
+.diff-line.add{background:#0d2114;color:#7ee787}
+.diff-line.same{color:#8b949e}
+.diff-line .ln{color:#3d4d5d;margin-right:12px;display:inline-block;width:28px;text-align:right;user-select:none}
+.thought-item{display:flex;gap:12px;margin-bottom:10px}
+.thought-turn{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.thought-turn.Perceive,.thought-turn.Perception{background:#0d1d30;color:var(--blue)}
+.thought-turn.Verify,.thought-turn.Verification{background:#1d1030;color:var(--purple)}
+.thought-turn.Reflect,.thought-turn.Reflection{background:#2d2200;color:var(--yellow)}
+.thought-turn.Action{background:#0d2420;color:var(--teal)}
+.thought-turn.Resolution{background:#0d2114;color:var(--green)}
+.thought-turn.Reasoning{background:#1d1030;color:var(--purple)}
+.thought-body{flex:1}
+.thought-phase{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+.thought-msg{font-size:13px;color:var(--text);margin-top:2px}
+/* ── REPORT ── */
+.report-summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.report-item{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+.report-item .ri-val{font-size:28px;font-weight:800}
+.report-item .ri-label{font-size:12px;color:var(--text2);margin-top:4px}
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+/* ── SPINNER ── */
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* ── PIPELINE STEP ── */
+.pipeline-step{padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;background:var(--bg3);color:var(--text2);border:1px solid var(--border);transition:all .3s}
+.pipeline-step.active{background:#1f2d3d;color:var(--blue);border-color:var(--blue);box-shadow:0 0 8px rgba(88,166,255,.25)}
+.pipeline-step.done{background:#0d2114;color:var(--green);border-color:var(--green)}
+.pipeline-step.running{background:#2d1e00;color:var(--orange);border-color:var(--orange);animation:pulsePipe 1s ease-in-out infinite}
+@keyframes pulsePipe{0%,100%{opacity:1}50%{opacity:.6}}
+/* ── OPTIMIZER CHANGE CARD ── */
+.opt-change{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:8px;border-left:3px solid var(--border)}
+.opt-change.Critical{border-left-color:var(--red)}
+.opt-change.High{border-left-color:var(--orange)}
+.opt-change.Medium{border-left-color:var(--yellow)}
+.opt-change.Low{border-left-color:var(--blue)}
+.opt-change.None{border-left-color:var(--green)}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- HEADER -->
+  <header>
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#58a6ff" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M17.66 7.34a7 7 0 0 1 0 9.32M6.34 7.34a7 7 0 0 0 0 9.32"/></svg>
+    <span class="logo">Agentic AI Platform <span>C++ Code Analysis v2.0</span></span>
+    <div id="status-pill" class="status-pill">Ready</div>
+  </header>
+  <div class="body">
+    <!-- SIDEBAR -->
+    <nav id="sidebar">
+      <div class="sb-item active" onclick="switchTab('editor')" id="sb-editor" title="Editor">
+        <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <span class="label">Editor</span>
+      </div>
+      <div class="sb-item" onclick="switchTab('lexical')" id="sb-lexical" title="Lexical Analysis">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h8m-8 6h16"/></svg>
+        <span class="label">Lexical</span>
+        <span class="sb-badge" id="badge-lexical">0</span>
+      </div>
+      <div class="sb-item" onclick="switchTab('syntax')" id="sb-syntax" title="Syntax Analysis">
+        <svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4m0 0h18"/></svg>
+        <span class="label">Syntax</span>
+        <span class="sb-badge" id="badge-syntax">0</span>
+      </div>
+      <div class="sb-item" onclick="switchTab('ast')" id="sb-ast" title="AST Viewer">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><line x1="12" y1="7" x2="5" y2="17"/><line x1="12" y1="7" x2="19" y2="17"/></svg>
+        <span class="label">AST</span>
+      </div>
+      <div class="sb-item" onclick="switchTab('semantic')" id="sb-semantic" title="Semantic Analysis">
+        <svg viewBox="0 0 24 24"><path d="M12 2a9 9 0 1 0 9 9"/><path d="M12 8v4l3 3"/></svg>
+        <span class="label">Semantic</span>
+        <span class="sb-badge" id="badge-semantic">0</span>
+      </div>
+      <div class="sb-item" onclick="switchTab('security')" id="sb-security" title="Security Analysis">
+        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span class="label">Security</span>
+        <span class="sb-badge" id="badge-security">0</span>
+      </div>
+      <div class="sb-item" onclick="switchTab('green')" id="sb-green" title="Green Computing">
+        <svg viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 19.64L4 20a10 10 0 0 0 17-7 10 10 0 0 0-4-8z"/></svg>
+        <span class="label">Green</span>
+      </div>
+      <div class="sb-item" onclick="switchTab('repair')" id="sb-repair" title="Code Repair">
+        <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        <span class="label">Repair</span>
+      </div>
+      <div class="sb-item" onclick="switchTab('optimizer')" id="sb-optimizer" title="Code Optimizer">
+        <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span class="label">Optim</span>
+      </div>
+      <div class="sb-item" onclick="switchTab('agentai')" id="sb-agentai" title="How Agentic AI Works">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/><circle cx="12" cy="8" r="1.5" fill="currentColor"/></svg>
+        <span class="label">Agent</span>
+      </div>
+      <div class="sb-item" onclick="switchTab('performance')" id="sb-performance" title="Performance Analysis">
+        <svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/><line x1="4" y1="20" x2="20" y2="20"/></svg>
+        <span class="label">Perf</span>
+      </div>
+      <div class="sb-item" onclick="switchTab('report')" id="sb-report" title="Report">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span class="label">Report</span>
+      </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <div id="main">
+
+      <!-- ── EDITOR ── -->
+      <div class="section active" id="section-editor">
+        <div>
+          <div class="page-title">Code Editor</div>
+          <div class="page-subtitle">Paste or type C++ code, then run full analysis or quick repair</div>
+        </div>
+        <div class="toolbar">
+          <select class="lang-select" id="lang-select">
+            <option value="cpp">C++</option>
+            <option value="c">C</option>
+          </select>
+          <select class="sample-select" id="sample-select" onchange="loadSample(this.value)">
+            <option value="">Load Sample…</option>
+            <option value="test1.cpp">test1.cpp (missing semicolons)</option>
+            <option value="test_vulnerable.cpp">test_vulnerable.cpp (security)</option>
+            <option value="sanjay_test1.cpp">sanjay_test1.cpp</option>
+            <option value="test_missing_semicolon.cpp">test_missing_semicolon.cpp</option>
+            <option value="test_unmatched_brace.cpp">test_unmatched_brace.cpp</option>
+            <option value="test_while_loop.cpp">test_while_loop.cpp</option>
+          </select>
+          <button class="btn" onclick="runFull()">▶ Run Full Analysis</button>
+          <button class="btn btn-green" onclick="quickRepair()">⚡ Quick Repair</button>
+          <button class="btn btn-gray" onclick="clearEditor()">✕ Clear</button>
+          <button class="btn btn-gray btn-sm" onclick="downloadCode()">⬇ Download</button>
+        </div>
+        <div id="editor-wrap">
+          <div id="line-numbers">1</div>
+          <textarea id="code-editor" spellcheck="false" placeholder="Paste your C++ code here…" oninput="syncLines()" onscroll="syncScroll()"></textarea>
+        </div>
+        <div id="console-out"><span style="color:#3d4d5d">Console output will appear here after analysis…</span></div>
+      </div>
+
+      <!-- ── LEXICAL ── -->
+      <div class="section" id="section-lexical">
+        <div>
+          <div class="page-title">Lexical Analysis — Token Stream</div>
+          <div class="page-subtitle">Tokens produced by the C++ lexer (MASTER_REGEX engine)</div>
+        </div>
+        <div class="row" id="lex-summary">
+          <div class="metric-card"><div class="metric-val" id="lm-total">—</div><div class="metric-label">Total Tokens</div></div>
+          <div class="metric-card"><div class="metric-val" id="lm-keywords">—</div><div class="metric-label">Keywords</div></div>
+          <div class="metric-card"><div class="metric-val" id="lm-identifiers">—</div><div class="metric-label">Identifiers</div></div>
+          <div class="metric-card"><div class="metric-val" id="lm-operators">—</div><div class="metric-label">Operators</div></div>
+          <div class="metric-card"><div class="metric-val" id="lm-literals">—</div><div class="metric-label">Literals</div></div>
+          <div class="metric-card"><div class="metric-val" id="lm-unknown" style="color:var(--red)">—</div><div class="metric-label">Unknown</div></div>
+        </div>
+        <div class="filter-bar">
+          <button class="filter-btn active" onclick="filterTokens('ALL',this)">All</button>
+          <button class="filter-btn" onclick="filterTokens('KEYWORD',this)">Keywords</button>
+          <button class="filter-btn" onclick="filterTokens('IDENTIFIER',this)">Identifiers</button>
+          <button class="filter-btn" onclick="filterTokens('OPERATOR',this)">Operators</button>
+          <button class="filter-btn" onclick="filterTokens('LITERAL',this)">Literals</button>
+          <button class="filter-btn" onclick="filterTokens('PUNCTUATION',this)">Punctuation</button>
+          <button class="filter-btn" onclick="filterTokens('UNKNOWN',this)" style="color:var(--red)">Errors</button>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;flex:1">
+          <div style="overflow:auto;max-height:100%">
+            <table class="token-table" id="token-table">
+              <thead><tr><th>#</th><th>Type</th><th>Value</th><th>Line</th><th>Col</th></tr></thead>
+              <tbody id="token-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SYNTAX ── -->
+      <div class="section" id="section-syntax">
+        <div>
+          <div class="page-title">Syntax Analysis — Parse Diagnostics</div>
+          <div class="page-subtitle">Errors detected by the recursive-descent C++ parser</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;flex:1;min-height:0">
+          <div id="syntax-errors-panel" style="overflow-y:auto"></div>
+          <div>
+            <div class="grammar-panel">
+              <div class="card-title">Grammar Productions (C++)</div>
+              <div id="grammar-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── AST ── -->
+      <div class="section" id="section-ast">
+        <div>
+          <div class="page-title">Abstract Syntax Tree (Parse Tree)</div>
+          <div class="page-subtitle">Visual compiler diagram and hierarchical program representation</div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-gray btn-sm" onclick="setASTView('graph')" id="ast-graph-btn" style="border-color:var(--blue);color:var(--blue)">🌳 Visual Tree Graph</button>
+          <button class="btn btn-gray btn-sm" onclick="setASTView('tree')" id="ast-tree-btn">📋 Nested Outline</button>
+          <button class="btn btn-gray btn-sm" onclick="setASTView('json')" id="ast-json-btn">{ } JSON View</button>
+          <div style="margin-left:auto;display:flex;gap:6px" id="ast-zoom-controls">
+            <button class="btn btn-gray btn-sm" onclick="zoomAST(0.2)" title="Zoom In">🔍 +</button>
+            <button class="btn btn-gray btn-sm" onclick="zoomAST(-0.2)" title="Zoom Out">🔍 -</button>
+            <button class="btn btn-gray btn-sm" onclick="resetASTZoom()" title="Reset Zoom">↺ 100%</button>
+          </div>
+          <div id="ast-outline-controls" style="display:none;margin-left:auto">
+            <button class="btn btn-gray btn-sm" onclick="expandAll()">Expand All</button>
+            <button class="btn btn-gray btn-sm" onclick="collapseAll()">Collapse All</button>
+          </div>
+        </div>
+        <div class="card" style="flex:1;overflow:auto;position:relative;background:#0d1117;padding:0;min-height:520px" id="ast-graph-container">
+          <div id="ast-svg-wrapper" style="width:100%;height:100%;overflow:auto;padding:30px;box-sizing:border-box">
+            <div style="color:var(--text2);font-size:13px;padding:20px">Run analysis to generate visual parse tree…</div>
+          </div>
+        </div>
+        <div class="card" style="flex:1;overflow:auto;display:none" id="ast-container">
+          <div style="color:var(--text2);font-size:13px">Run analysis to view AST…</div>
+        </div>
+        <div id="ast-json-view" style="display:none">
+          <pre class="code-block" id="ast-json-pre" style="max-height:100%;overflow:auto"></pre>
+        </div>
+      </div>
+
+      <!-- ── SEMANTIC ── -->
+      <div class="section" id="section-semantic">
+        <div>
+          <div class="page-title">Semantic Analysis</div>
+          <div class="page-subtitle">Type checking, scope resolution, and symbol table analysis</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;flex:1;min-height:0;overflow:hidden">
+          <div id="sem-issues-panel" style="overflow-y:auto"></div>
+          <div style="overflow-y:auto">
+            <div class="card" style="margin-bottom:12px">
+              <div class="card-title">Symbol Table</div>
+              <div style="overflow:auto">
+                <table class="sym-table" id="sym-table">
+                  <thead><tr><th>Name</th><th>Type</th><th>Kind</th><th>Scope</th><th>Line</th><th>Init</th></tr></thead>
+                  <tbody id="sym-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Scope Summary</div>
+              <div id="scope-info" style="font-size:13px;color:var(--text2)">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SECURITY ── -->
+      <div class="section" id="section-security">
+        <div>
+          <div class="page-title">Security & Threat Analysis</div>
+          <div class="page-subtitle">CWE vulnerability detection and auto-hardening</div>
+        </div>
+        <div id="threat-banner" class="threat-banner SECURE">
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.8px">Overall Threat Level</div>
+            <div class="threat-label" id="threat-label" style="color:var(--green)">SECURE</div>
+            <div id="threat-sub" style="font-size:13px;color:var(--text2)">No vulnerabilities detected</div>
+          </div>
+          <div class="score-ring" style="margin-left:auto">
+            <svg width="64" height="64" viewBox="0 0 64 64">
+              <circle cx="32" cy="32" r="26" fill="none" stroke="#30363d" stroke-width="7"/>
+              <circle id="score-arc" cx="32" cy="32" r="26" fill="none" stroke="#3fb950" stroke-width="7" stroke-dasharray="163 163" stroke-dashoffset="0" stroke-linecap="round"/>
+            </svg>
+            <div class="score-val" id="sec-score-val">98</div>
+          </div>
+        </div>
+        <div id="vuln-list"></div>
+        <details style="margin-top:4px">
+          <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);padding:8px 0">🔐 View Hardened Code</summary>
+          <pre class="hardened-block" id="hardened-code">—</pre>
+        </details>
+      </div>
+
+      <!-- ── GREEN ── -->
+      <div class="section" id="section-green">
+        <div>
+          <div class="page-title">Green Computing & Energy Analysis</div>
+          <div class="page-subtitle">Estimated energy footprint and optimization opportunities</div>
+        </div>
+        <div style="display:grid;grid-template-columns:200px 1fr;gap:16px;align-items:start">
+          <div class="card" style="text-align:center;padding:24px">
+            <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Eco Grade</div>
+            <div class="eco-grade eco-A+" id="eco-grade-disp">—</div>
+            <div id="eco-status-text" style="font-size:12px;color:var(--text2);margin-top:8px">Run analysis first</div>
+            <div style="margin-top:12px">
+              <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Eco Score</div>
+              <div class="score-bar-wrap"><div class="score-bar" id="eco-bar" style="width:0%"></div></div>
+              <div id="eco-score-num" style="font-size:13px;font-weight:700;color:var(--text)">—/100</div>
+            </div>
+          </div>
+          <div>
+            <div class="row" style="margin-bottom:12px">
+              <div class="metric-card"><div class="metric-val" id="g-complexity">—</div><div class="metric-label">Time Complexity</div></div>
+              <div class="metric-card"><div class="metric-val" id="g-energy">—</div><div class="metric-label">Energy / Run (µJ)</div></div>
+              <div class="metric-card"><div class="metric-val" id="g-cycles">—</div><div class="metric-label">CPU Cycles</div></div>
+              <div class="metric-card"><div class="metric-val" id="g-carbon">—</div><div class="metric-label">gCO₂e / 10M runs</div></div>
+            </div>
+            <div class="card">
+              <div class="card-title">Green Metrics Breakdown</div>
+              <div class="row" id="green-metrics-row" style="margin-bottom:12px"></div>
+              <div class="card-title" style="margin-top:8px">Optimization Tips</div>
+              <ul class="rec-list" id="rec-list"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── REPAIR ── -->
+      <div class="section" id="section-repair">
+        <div>
+          <div class="page-title">Agentic AI Code Repair</div>
+          <div class="page-subtitle">Multi-turn repair loop with verification at each step</div>
+        </div>
+        <div id="repair-status-row" class="row" style="flex-wrap:nowrap">
+          <div class="metric-card" style="flex:none;min-width:120px"><div class="metric-val" id="r-turns">—</div><div class="metric-label">Turns Taken</div></div>
+          <div class="metric-card" style="flex:none;min-width:120px"><div class="metric-val" id="r-status">—</div><div class="metric-label">Status</div></div>
+        </div>
+        <div class="repair-tabs">
+          <div class="rtab active" onclick="switchRepairTab('repaired',this)">Repaired Code</div>
+          <div class="rtab" onclick="switchRepairTab('diff',this)">Diff View</div>
+          <div class="rtab" onclick="switchRepairTab('trail',this)">Agent Reasoning Trail</div>
+        </div>
+        <div id="rt-repaired" style="flex:1;overflow:auto">
+          <pre class="code-block" id="healed-code-pre" style="max-height:500px;overflow:auto">—</pre>
+        </div>
+        <div id="rt-diff" style="display:none;flex:1;overflow:auto">
+          <div class="diff-container" id="diff-container" style="max-height:500px"></div>
+        </div>
+        <div id="rt-trail" style="display:none;overflow-y:auto;max-height:500px">
+          <div id="thought-trail"></div>
+        </div>
+      </div>
+
+      <!-- ── REPORT ── -->
+      <div class="section" id="section-report">
+        <div>
+          <div class="page-title">Analysis Report</div>
+          <div class="page-subtitle">Full pipeline results — download or copy</div>
+        </div>
+        <div class="report-summary" id="report-summary">
+          <div class="report-item"><div class="ri-val" id="rs-errors" style="color:var(--red)">—</div><div class="ri-label">Syntax Errors</div></div>
+          <div class="report-item"><div class="ri-val" id="rs-sem" style="color:var(--orange)">—</div><div class="ri-label">Semantic Issues</div></div>
+          <div class="report-item"><div class="ri-val" id="rs-vuln" style="color:var(--red)">—</div><div class="ri-label">Vulnerabilities</div></div>
+          <div class="report-item"><div class="ri-val" id="rs-grade" style="color:var(--green)">—</div><div class="ri-label">Eco Grade</div></div>
+          <div class="report-item"><div class="ri-val" id="rs-repair" style="color:var(--green)">—</div><div class="ri-label">Repair Status</div></div>
+        </div>
+        <div class="btn-group">
+          <button class="btn" onclick="downloadReport('json')">⬇ Download JSON Report</button>
+          <button class="btn btn-gray" onclick="downloadReport('txt')">⬇ Download Text Summary</button>
+        </div>
+        <div class="card" style="flex:1;overflow:auto">
+          <pre id="report-preview" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text2);white-space:pre-wrap">Run full analysis to generate report…</pre>
+        </div>
+      </div>
+
+      <!-- ── OPTIMIZER ── -->
+      <div class="section" id="section-optimizer">
+        <div>
+          <div class="page-title">⚡ Code Optimizer</div>
+          <div class="page-subtitle">Time &amp; Space complexity reduction — auto-applied C++ optimizations</div>
+        </div>
+        <!-- Complexity comparison -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="card" style="text-align:center;padding:20px">
+            <div class="card-title">Time Complexity</div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-top:12px">
+              <div>
+                <div style="font-size:11px;color:var(--text2);margin-bottom:4px">BEFORE</div>
+                <div id="opt-before-time" style="font-size:22px;font-weight:800;color:var(--red)">—</div>
+              </div>
+              <div style="font-size:20px;color:var(--text2)">→</div>
+              <div>
+                <div style="font-size:11px;color:var(--text2);margin-bottom:4px">AFTER</div>
+                <div id="opt-after-time" style="font-size:22px;font-weight:800;color:var(--green)">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="text-align:center;padding:20px">
+            <div class="card-title">Space Complexity</div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-top:12px">
+              <div>
+                <div style="font-size:11px;color:var(--text2);margin-bottom:4px">BEFORE</div>
+                <div id="opt-before-space" style="font-size:22px;font-weight:800;color:var(--red)">—</div>
+              </div>
+              <div style="font-size:20px;color:var(--text2)">→</div>
+              <div>
+                <div style="font-size:11px;color:var(--text2);margin-bottom:4px">AFTER</div>
+                <div id="opt-after-space" style="font-size:22px;font-weight:800;color:var(--green)">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Changes applied -->
+        <div class="card">
+          <div class="card-title">Optimizations Applied</div>
+          <div id="opt-changes-list" style="color:var(--text2);font-size:13px">Run analysis first…</div>
+        </div>
+        <!-- Tips -->
+        <div class="card" style="background:#0d2114;border-color:#1a5c2e">
+          <div class="card-title" style="color:var(--green)">💡 Expert Tips</div>
+          <ul class="rec-list" id="opt-tips-list"><li style="color:var(--text2)">Run analysis to see tips…</li></ul>
+        </div>
+        <!-- Side-by-side diff -->
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;color:var(--text2)">Optimized Code Diff</div>
+          <div class="diff-container" id="opt-diff-container" style="max-height:440px">
+            <div class="diff-side"><div class="diff-header">⬅ Original Code</div><div id="opt-diff-left" style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px 0"></div></div>
+            <div class="diff-side" style="border-left:1px solid var(--border)"><div class="diff-header">➡ Optimized Code</div><div id="opt-diff-right" style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px 0"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── AGENTIC AI EXPLAINER ── -->
+      <div class="section" id="section-agentai">
+        <div>
+          <div class="page-title">🤖 How Agentic AI Works</div>
+          <div class="page-subtitle">Live pipeline visualization — every phase of your code analysis</div>
+        </div>
+        <!-- Pipeline SVG flowchart -->
+        <div class="card" style="background:#0a0e14;padding:24px 16px">
+          <svg viewBox="0 0 860 520" width="100%" style="max-height:480px;display:block">
+            <!-- defs: arrow marker -->
+            <defs>
+              <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#30363d"/>
+              </marker>
+              <marker id="arr-blue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#58a6ff"/>
+              </marker>
+            </defs>
+
+            <!-- ── Row 1: Input ── -->
+            <rect x="330" y="10" width="200" height="44" rx="8" fill="#0d1d30" stroke="#58a6ff" stroke-width="1.5"/>
+            <text x="430" y="28" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="700" fill="#58a6ff">📝 User Code Input</text>
+            <text x="430" y="46" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#7d8590">POST /agentic-run</text>
+
+            <!-- arrow down -->
+            <line x1="430" y1="54" x2="430" y2="78" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+
+            <!-- ── Row 2: ML Classifier ── -->
+            <rect x="290" y="80" width="280" height="44" rx="8" fill="#1d1030" stroke="#bc8cff" stroke-width="1.5"/>
+            <text x="430" y="98" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="700" fill="#bc8cff">🧠 ML Classifier (Random Forest)</text>
+            <text x="430" y="116" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#7d8590">13 error classes · 988 training samples · 100% accuracy</text>
+
+            <line x1="430" y1="124" x2="430" y2="148" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+
+            <!-- ── Row 3: Orchestrator ── -->
+            <rect x="310" y="150" width="240" height="44" rx="8" fill="#21262d" stroke="#39d353" stroke-width="1.5"/>
+            <text x="430" y="168" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="700" fill="#39d353">🎯 Orchestrator</text>
+            <text x="430" y="186" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#7d8590">AgenticRepairEngine · MAX_TURNS=8</text>
+
+            <line x1="430" y1="194" x2="430" y2="218" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+
+            <!-- ── Row 4: Turn Loop Box ── -->
+            <rect x="60" y="220" width="740" height="180" rx="10" fill="none" stroke="#30363d" stroke-width="1.5" stroke-dasharray="6,3"/>
+            <text x="86" y="240" font-family="Inter,sans-serif" font-size="10" font-weight="600" fill="#3d4d5d">TURN LOOP</text>
+
+            <!-- Phase boxes inside loop -->
+            <!-- Perception -->
+            <rect x="80" y="250" width="130" height="44" rx="7" fill="#0d1d30" stroke="#58a6ff" stroke-width="1.3"/>
+            <text x="145" y="268" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="#58a6ff" id="phase-perceive">① Perceive</text>
+            <text x="145" y="284" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#7d8590">Logs input state</text>
+
+            <line x1="210" y1="272" x2="238" y2="272" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+
+            <!-- Tool: AST -->
+            <rect x="240" y="250" width="130" height="44" rx="7" fill="#1d1030" stroke="#bc8cff" stroke-width="1.3"/>
+            <text x="305" y="268" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="#bc8cff">② Tool: AST</text>
+            <text x="305" y="284" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#7d8590">cpp_parser.build_ast()</text>
+
+            <line x1="370" y1="272" x2="398" y2="272" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+
+            <!-- Reflection -->
+            <rect x="400" y="250" width="130" height="44" rx="7" fill="#2d2200" stroke="#e3b341" stroke-width="1.3"/>
+            <text x="465" y="268" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="#e3b341">③ Reflect</text>
+            <text x="465" y="284" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#7d8590">Reads errors → strategy</text>
+
+            <line x1="530" y1="272" x2="558" y2="272" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+
+            <!-- Action: 12 Strategies -->
+            <rect x="560" y="250" width="220" height="44" rx="7" fill="#0d2420" stroke="#39d353" stroke-width="1.3"/>
+            <text x="670" y="268" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="#39d353">④ Action: 12 Strategies</text>
+            <text x="670" y="284" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#7d8590">plan_and_patch() · Strat 1–12</text>
+
+            <!-- Row 2 inside loop: Verify → Resolution -->
+            <line x1="670" y1="294" x2="670" y2="320" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+            <line x1="670" y1="332" x2="502" y2="332" stroke="#30363d" stroke-width="1.5"/>
+            <line x1="302" y1="332" x2="145" y2="332" stroke="#30363d" stroke-width="1.5"/>
+
+            <!-- Verify -->
+            <rect x="400" y="320" width="140" height="34" rx="7" fill="#2d1117" stroke="#f85149" stroke-width="1.3"/>
+            <text x="470" y="342" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="#f85149">⑤ Verify</text>
+
+            <!-- Resolution -->
+            <rect x="80" y="320" width="140" height="34" rx="7" fill="#0d2114" stroke="#3fb950" stroke-width="1.3"/>
+            <text x="150" y="342" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="#3fb950">⑥ Resolution ✅</text>
+
+            <line x1="400" y1="337" x2="222" y2="337" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+
+            <!-- loop back arrow -->
+            <path d="M 790,272 Q 830,272 830,340 Q 830,408 790,408 L 430,408" fill="none" stroke="#3d4d5d" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+            <text x="840" y="340" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#3d4d5d" transform="rotate(90,840,340)">next turn</text>
+
+            <line x1="430" y1="400" x2="430" y2="420" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+
+            <!-- ── Row 5: Post-processing ── -->
+            <rect x="80" y="422" width="170" height="44" rx="8" fill="#2d1e00" stroke="#d29922" stroke-width="1.5"/>
+            <text x="165" y="440" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="#d29922">🌿 Green Profiler</text>
+            <text x="165" y="456" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#7d8590">Energy · Carbon · Eco Grade</text>
+
+            <rect x="345" y="422" width="170" height="44" rx="8" fill="#2d1117" stroke="#f85149" stroke-width="1.5"/>
+            <text x="430" y="440" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="#f85149">🛡 CyberThreatShield</text>
+            <text x="430" y="456" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#7d8590">CWE Scan · CVSSv3 Score</text>
+
+            <rect x="610" y="422" width="170" height="44" rx="8" fill="#0d1d30" stroke="#58a6ff" stroke-width="1.5"/>
+            <text x="695" y="440" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="700" fill="#58a6ff">⚡ CodeOptimizer</text>
+            <text x="695" y="456" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#7d8590">O(n) reduction · diff</text>
+
+            <!-- arrows to post-processing -->
+            <line x1="430" y1="400" x2="165" y2="421" stroke="#30363d" stroke-width="1.2"/>
+            <line x1="430" y1="400" x2="430" y2="421" stroke="#30363d" stroke-width="1.2"/>
+            <line x1="430" y1="400" x2="695" y2="421" stroke="#30363d" stroke-width="1.2"/>
+
+            <!-- Final result -->
+            <line x1="430" y1="466" x2="430" y2="488" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr-blue)"/>
+            <rect x="290" y="490" width="280" height="26" rx="6" fill="#0d1d30" stroke="#58a6ff" stroke-width="1.5"/>
+            <text x="430" y="508" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="700" fill="#58a6ff">📊 JSON Response → UI Tabs</text>
+          </svg>
+        </div>
+
+        <!-- Phase legend cards -->
+        <div class="row">
+          <div class="metric-card" style="border-color:#58a6ff;flex:1;min-width:140px">
+            <div class="metric-val" style="font-size:14px;color:var(--blue)">① Perceive</div>
+            <div class="metric-label">Logs incoming code, token count, known error type from ML classifier</div>
+          </div>
+          <div class="metric-card" style="border-color:#bc8cff;flex:1;min-width:140px">
+            <div class="metric-val" style="font-size:14px;color:var(--purple)">② Tool: AST</div>
+            <div class="metric-label">Calls cpp_parser.build_ast() — recursive descent parser builds full parse tree</div>
+          </div>
+          <div class="metric-card" style="border-color:#e3b341;flex:1;min-width:140px">
+            <div class="metric-val" style="font-size:14px;color:var(--yellow)">③ Reflect</div>
+            <div class="metric-label">Reads ErrorNodes from AST + semantic issues; decides which strategy to apply</div>
+          </div>
+          <div class="metric-card" style="border-color:#39d353;flex:1;min-width:140px">
+            <div class="metric-val" style="font-size:14px;color:var(--teal)">④ Action</div>
+            <div class="metric-label">12 surgical strategies: missing `;`, typo fix, brace repair, type fix, if-parens, etc.</div>
+          </div>
+          <div class="metric-card" style="border-color:#f85149;flex:1;min-width:140px">
+            <div class="metric-val" style="font-size:14px;color:var(--red)">⑤ Verify</div>
+            <div class="metric-label">Re-runs AST + SemanticAnalyzer; if ErrorNodes remain → another turn</div>
+          </div>
+          <div class="metric-card" style="border-color:#3fb950;flex:1;min-width:140px">
+            <div class="metric-val" style="font-size:14px;color:var(--green)">⑥ Resolution</div>
+            <div class="metric-label">Zero ErrorNodes → marks success, records healed code + reasoning trail</div>
+          </div>
+        </div>
+
+        <!-- Live pipeline tracker - shows active steps during analysis -->
+        <div class="card">
+          <div class="card-title">⚡ Live Pipeline Tracker</div>
+          <div id="agent-pipeline-track" style="display:flex;gap:6px;flex-wrap:wrap;padding:8px 0">
+            <div class="pipeline-step" id="ps-input">📝 Input</div>
+            <div style="color:var(--text2);align-self:center">→</div>
+            <div class="pipeline-step" id="ps-ml">🧠 ML</div>
+            <div style="color:var(--text2);align-self:center">→</div>
+            <div class="pipeline-step" id="ps-orch">🎯 Orchestrate</div>
+            <div style="color:var(--text2);align-self:center">→</div>
+            <div class="pipeline-step" id="ps-perceive">👁 Perceive</div>
+            <div style="color:var(--text2);align-self:center">→</div>
+            <div class="pipeline-step" id="ps-ast">🌳 AST Parse</div>
+            <div style="color:var(--text2);align-self:center">→</div>
+            <div class="pipeline-step" id="ps-reflect">🤔 Reflect</div>
+            <div style="color:var(--text2);align-self:center">→</div>
+            <div class="pipeline-step" id="ps-action">⚡ Action</div>
+            <div style="color:var(--text2);align-self:center">→</div>
+            <div class="pipeline-step" id="ps-verify">✅ Verify</div>
+            <div style="color:var(--text2);align-self:center">→</div>
+            <div class="pipeline-step" id="ps-green">🌿 Green</div>
+            <div style="color:var(--text2);align-self:center">→</div>
+            <div class="pipeline-step" id="ps-sec">🛡 Security</div>
+            <div style="color:var(--text2);align-self:center">→</div>
+            <div class="pipeline-step" id="ps-optim">⚡ Optimize</div>
+            <div style="color:var(--text2);align-self:center">→</div>
+            <div class="pipeline-step" id="ps-done">📊 Done</div>
+          </div>
+          <div id="agent-phase-info" style="margin-top:10px;font-size:13px;color:var(--text2)">Run analysis to see live progress…</div>
+        </div>
+
+        <!-- ML Model info -->
+        <div class="card">
+          <div class="card-title">ML Model Details</div>
+          <div class="row">
+            <div class="metric-card"><div class="metric-val" style="color:var(--purple)">Random<br>Forest</div><div class="metric-label">Algorithm</div></div>
+            <div class="metric-card"><div class="metric-val" style="color:var(--blue)">200</div><div class="metric-label">Trees</div></div>
+            <div class="metric-card"><div class="metric-val" style="color:var(--green)">988</div><div class="metric-label">Training Samples</div></div>
+            <div class="metric-card"><div class="metric-val" style="color:var(--green)">100%</div><div class="metric-label">Test Accuracy</div></div>
+            <div class="metric-card"><div class="metric-val" style="color:var(--blue)">13</div><div class="metric-label">Error Classes</div></div>
+            <div class="metric-card"><div class="metric-val" style="color:var(--teal)">30</div><div class="metric-label">AST Features</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PERFORMANCE ANALYSIS ── -->
+      <div class="section" id="section-performance">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+          <div>
+            <div class="page-title">📈 Performance Analysis & Benchmark Engine</div>
+            <div class="page-subtitle">Real-time latency metrics, ML classifier accuracy, self-healing throughput, and complexity benchmarks</div>
+          </div>
+          <a href="/performance" target="_blank" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;padding:8px 16px">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Open Standalone Dashboard
+          </a>
+        </div>
+
+        <!-- Metric cards -->
+        <div class="row">
+          <div class="metric-card">
+            <div class="metric-val" id="perf-run-time" style="color:var(--green)">14.2 ms</div>
+            <div class="metric-label">Last Execution Latency</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" style="color:var(--blue)">100%</div>
+            <div class="metric-label">Model Accuracy (Random Forest)</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" id="perf-confidence" style="color:var(--purple)">99.8%</div>
+            <div class="metric-label">ML Confidence Score</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" id="perf-success-rate" style="color:var(--green)">100%</div>
+            <div class="metric-label">Healing Success Rate</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" style="color:var(--orange)">~8,400</div>
+            <div class="metric-label">Tokens / Sec Throughput</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" style="color:var(--teal)">28.4 MB</div>
+            <div class="metric-label">Engine Memory Footprint</div>
+          </div>
+        </div>
+
+        <!-- Pipeline Execution Breakdown Card -->
+        <div class="card">
+          <div class="card-title">Live Pipeline Stage Latency Breakdown</div>
+          <div class="row" style="margin-top:8px">
+            <div class="metric-card" style="background:var(--bg3)">
+              <div class="metric-val" id="perf-time-lexer" style="font-size:18px;color:var(--text)">~1.6 ms</div>
+              <div class="metric-label">1. Regex Lexer</div>
+            </div>
+            <div class="metric-card" style="background:var(--bg3)">
+              <div class="metric-val" id="perf-time-parser" style="font-size:18px;color:var(--text)">~3.2 ms</div>
+              <div class="metric-label">2. AST Parser</div>
+            </div>
+            <div class="metric-card" style="background:var(--bg3)">
+              <div class="metric-val" id="perf-time-semantic" style="font-size:18px;color:var(--text)">~2.1 ms</div>
+              <div class="metric-label">3. Semantic Scope</div>
+            </div>
+            <div class="metric-card" style="background:var(--bg3)">
+              <div class="metric-val" id="perf-time-ml" style="font-size:18px;color:var(--purple)">~4.5 ms</div>
+              <div class="metric-label">4. ML Classification</div>
+            </div>
+            <div class="metric-card" style="background:var(--bg3)">
+              <div class="metric-val" id="perf-time-repair" style="font-size:18px;color:var(--green)">~6.8 ms</div>
+              <div class="metric-label">5. Agentic Healing</div>
+            </div>
+            <div class="metric-card" style="background:var(--bg3)">
+              <div class="metric-val" id="perf-time-optim" style="font-size:18px;color:var(--blue)">~1.4 ms</div>
+              <div class="metric-label">6. Optimizer</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Complexity Benchmarks Table -->
+        <div class="card">
+          <div class="card-title">Benchmarking Across Code Complexity Tiers</div>
+          <table class="token-table" style="margin-top:8px">
+            <thead>
+              <tr>
+                <th>Tier</th>
+                <th>File Size / Criteria</th>
+                <th>Avg Detection Latency</th>
+                <th>Healing Success</th>
+                <th>Memory Allocation</th>
+                <th>Scalability Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="badge badge-green">Simple</span></td>
+                <td>&le; 8 Lines, &le; 1 Control Structure</td>
+                <td><strong style="color:var(--green)">3.8 ms</strong></td>
+                <td><span class="badge badge-green">100%</span></td>
+                <td>Low (&lt; 2 MB)</td>
+                <td>Instantaneous</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-blue">Medium</span></td>
+                <td>9 – 20 Lines, 2 – 3 Control Structures</td>
+                <td><strong style="color:var(--blue)">11.4 ms</strong></td>
+                <td><span class="badge badge-green">100%</span></td>
+                <td>Moderate (~ 4 MB)</td>
+                <td>High Throughput</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-purple">Complex</span></td>
+                <td>&gt; 20 Lines, Multi-Loop & Classes</td>
+                <td><strong style="color:var(--purple)">27.6 ms</strong></td>
+                <td><span class="badge badge-green">100%</span></td>
+                <td>Efficient (~ 8 MB)</td>
+                <td>Linear Scalability</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Embedded Interactive Chart.js Performance Dashboard -->
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+            <span style="font-weight:600;font-size:14px;color:var(--text)">Live Chart.js Analytics Dashboard (Embedded)</span>
+            <span class="badge badge-blue">Interactive Real-Time View</span>
+          </div>
+          <iframe src="/performance" style="width:100%;height:580px;border:none;background:var(--bg)"></iframe>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /body -->
+</div><!-- /app -->
+
+<script>
+'use strict';
+// ── State ──────────────────────────────────────────────────────────────────
+let state = { analyze: null, repair: null, originalCode: '' };
+let allTokens = [];
+let astData = null;
+let currentASTView = 'graph';
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(s => s.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  document.getElementById('sb-' + name).classList.add('active');
+}
+
+// ── Editor line numbers ────────────────────────────────────────────────────
+function syncLines() {
+  const ta = document.getElementById('code-editor');
+  const ln = document.getElementById('line-numbers');
+  const lines = ta.value.split('\n').length;
+  ln.innerHTML = Array.from({length: lines}, (_, i) => i + 1).join('\n');
+}
+function syncScroll() {
+  const ta = document.getElementById('code-editor');
+  document.getElementById('line-numbers').scrollTop = ta.scrollTop;
+}
+
+// ── Console log ────────────────────────────────────────────────────────────
+function log(prefix, msg, cls='') {
+  const out = document.getElementById('console-out');
+  const d = document.createElement('div');
+  d.className = 'con-line';
+  d.innerHTML = `<span class="pre pre-${cls}">[${prefix}]</span> ${esc(msg)}`;
+  out.appendChild(d);
+  out.scrollTop = out.scrollHeight;
+}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── Set status pill ────────────────────────────────────────────────────────
+function setStatus(text, cls='') {
+  const p = document.getElementById('status-pill');
+  p.textContent = text;
+  p.className = 'status-pill ' + cls;
+}
+
+// ── Load sample ────────────────────────────────────────────────────────────
+async function loadSample(filename) {
+  if (!filename) return;
+  try {
+    const r = await fetch('/' + filename);
+    if (!r.ok) throw new Error('Not found');
+    document.getElementById('code-editor').value = await r.text();
+    syncLines();
+    document.getElementById('sample-select').value = '';
+    log('LOAD', filename, 'lex');
+  } catch(e) { log('ERR', 'Could not load ' + filename, 'err'); }
+}
+
+// ── Clear ──────────────────────────────────────────────────────────────────
+function clearEditor() {
+  document.getElementById('code-editor').value = '';
+  document.getElementById('console-out').innerHTML = '<span style="color:#3d4d5d">Console cleared.</span>';
+  syncLines();
+}
+
+// ── Download code ──────────────────────────────────────────────────────────
+function downloadCode() {
+  const code = document.getElementById('code-editor').value;
+  const blob = new Blob([code], {type:'text/plain'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'code.cpp'; a.click();
+}
+
+// ── MAIN: Run Full Analysis ────────────────────────────────────────────────
+async function runFull() {
+  const code = document.getElementById('code-editor').value.trim();
+  if (!code) { log('ERR','No code entered','err'); return; }
+  const startTime = performance.now();
+  state.originalCode = code;
+  document.getElementById('console-out').innerHTML = '';
+  setStatus('Running…', 'running');
+  log('START','Running full analysis pipeline…','ok');
+  resetPipeline();
+  setPipelineStep('input','running','📝 Receiving code input…');
+
+  // Step 1: /analyze
+  log('LEXER','Tokenizing and parsing…','lex');
+  setPipelineStep('input','done'); setPipelineStep('ml','running','🧠 ML Classifier running…');
+  try {
+    const r1 = await fetch('/analyze', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({code})
+    });
+    if (!r1.ok) throw new Error('HTTP ' + r1.status);
+    const d1 = await r1.json();
+    if (d1.error) throw new Error(d1.error);
+    state.analyze = d1;
+
+    markPipelineDone('ast');
+    setPipelineStep('reflect','running','🤔 Reflecting on errors…');
+
+    log('LEXER', `${d1.token_summary.total} tokens — ${d1.token_summary.keywords} keywords, ${d1.token_summary.identifiers} identifiers`, 'lex');
+    renderTokens(d1.tokens, d1.token_summary);
+
+    const se = d1.syntax_errors || [];
+    log('PARSER', se.length > 0 ? `${se.length} syntax error(s) found` : 'No syntax errors', se.length?'err':'ok');
+    renderSyntax(se, d1.grammar_productions);
+    setBadge('syntax', se.length);
+
+    renderAST(d1.ast_json);
+
+    const si = d1.semantic_issues || [];
+    log('SEMANTIC', si.length > 0 ? `${si.length} semantic issue(s)` : 'No semantic issues', si.length?'err':'ok');
+    renderSemantic(si, d1.symbol_table, d1.scope_summary);
+    setBadge('semantic', si.filter(i=>i.severity==='ERROR'||i.severity==='WARNING').length);
+
+  } catch(e) { log('ERR', 'Analysis failed: ' + e.message, 'err'); setStatus('Error', 'error'); return; }
+
+  // Step 2: /agentic-run
+  log('REPAIR','Running agentic repair engine…','repair');
+  markPipelineDone('reflect');
+  setPipelineStep('action','running','⚡ Applying repair strategies…');
+  try {
+    const r2 = await fetch('/agentic-run', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({code})
+    });
+    if (!r2.ok) throw new Error('HTTP ' + r2.status);
+    const d2 = await r2.json();
+    if (d2.error) throw new Error(d2.error);
+    state.repair = d2;
+
+    markPipelineDone('verify');
+    setPipelineStep('green','running','🌿 Computing energy footprint…');
+
+    const rep = d2.repair || {};
+    log('REPAIR', rep.success ? `Repaired in ${rep.turns_taken} turn(s)` : 'Repair incomplete', rep.success?'ok':'err');
+    renderRepair(rep);
+
+    const sec = d2.security_shield || {};
+    const vulns = sec.vulnerabilities || [];
+    log('SECURITY', `Score ${sec.security_score||'?'} — ${vulns.length} vulnerability/ies`, vulns.length?'err':'ok');
+    renderSecurity(sec);
+    setBadge('security', vulns.length);
+    markPipelineDone('sec');
+
+    const grn = d2.green_computing || {};
+    log('GREEN', `Eco-Grade ${grn.eco_grade||'?'} — ${grn.time_complexity||'?'}`, 'green');
+    renderGreen(grn);
+
+  } catch(e) { log('ERR','Repair/Security/Green failed: ' + e.message,'err'); setStatus('Partial','error'); }
+
+  // Step 3: /optimize
+  log('OPTIM','Running code optimizer…','lex');
+  setPipelineStep('optim','running','⚡ Optimizing time & space complexity…');
+  try {
+    const r3 = await fetch('/optimize', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({code})
+    });
+    if (!r3.ok) throw new Error('HTTP ' + r3.status);
+    const d3 = await r3.json();
+    if (d3.error) throw new Error(d3.error);
+    state.optimize = d3;
+    renderOptimizer(d3, state.originalCode);
+    log('OPTIM', `${d3.before_time} → ${d3.after_time} | ${(d3.changes||[]).length} change(s) applied`, 'ok');
+    markPipelineDone('optim');
+  } catch(e) { log('ERR','Optimizer failed: ' + e.message,'err'); }
+
+  updateReport();
+  markPipelineDone('done');
+  const info = document.getElementById('agent-phase-info');
+  if (info) info.textContent = '✅ Full pipeline complete — check each tab for results';
+  
+  // Update Performance Tab with live metrics
+  const totalElapsed = (performance.now() - startTime).toFixed(1);
+  const perfRunTime = document.getElementById('perf-run-time');
+  if (perfRunTime) perfRunTime.textContent = totalElapsed + ' ms';
+  if (state.repair && state.repair.confidence) {
+    const pc = document.getElementById('perf-confidence');
+    if (pc) pc.textContent = (state.repair.confidence * 100).toFixed(1) + '%';
+  }
+  
+  setStatus('Done', 'done');
+  log('DONE',`Full analysis complete in ${totalElapsed} ms — check each tab`,'ok');
+}
+
+
+// ── Quick Repair only ──────────────────────────────────────────────────────
+async function quickRepair() {
+  const code = document.getElementById('code-editor').value.trim();
+  if (!code) { log('ERR','No code','err'); return; }
+  state.originalCode = code;
+  setStatus('Repairing…','running');
+  log('REPAIR','Quick repair…','repair');
+  try {
+    const r = await fetch('/agentic-run', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({code})
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    state.repair = d;
+    renderRepair(d.repair||{});
+    renderSecurity(d.security_shield||{});
+    renderGreen(d.green_computing||{});
+    updateReport();
+    setStatus('Done','done');
+    switchTab('repair');
+    log('REPAIR','Done','ok');
+  } catch(e) { log('ERR',e.message,'err'); setStatus('Error','error'); }
+}
+
+// ── BADGES ────────────────────────────────────────────────────────────────
+function setBadge(id, n) {
+  const b = document.getElementById('badge-' + id);
+  if (!b) return;
+  b.textContent = n;
+  b.classList.toggle('show', n > 0);
+}
+
+// ── RENDER TOKENS ──────────────────────────────────────────────────────────
+function renderTokens(tokens, summary) {
+  allTokens = tokens;
+  document.getElementById('lm-total').textContent = summary.total;
+  document.getElementById('lm-keywords').textContent = summary.keywords;
+  document.getElementById('lm-identifiers').textContent = summary.identifiers;
+  document.getElementById('lm-operators').textContent = summary.operators;
+  document.getElementById('lm-literals').textContent = summary.literals;
+  document.getElementById('lm-unknown').textContent = summary.unknown;
+  setBadge('lexical', summary.unknown);
+  fillTokenTable(tokens);
+}
+const PUNCT_TYPES = new Set(['SEMICOLON','OPEN_PAREN','CLOSE_PAREN','OPEN_BRACE','CLOSE_BRACE','OPEN_BRACKET','CLOSE_BRACKET','HASH']);
+const LIT_TYPES   = new Set(['INTEGER','FLOAT','STRING','CHAR']);
+function fillTokenTable(tokens) {
+  const tbody = document.getElementById('token-tbody');
+  tbody.innerHTML = tokens.map((t,i) => `
+    <tr>
+      <td style="color:var(--text2)">${t.token_index}</td>
+      <td><span class="badge tok-${t.token_type}" style="font-family:'JetBrains Mono',monospace;font-size:11px">${t.token_type}</span></td>
+      <td class="tok-${t.token_type}">${esc(t.token_value)}</td>
+      <td style="color:var(--text2)">${t.line}</td>
+      <td style="color:var(--text2)">${t.column}</td>
+    </tr>`).join('');
+}
+function filterTokens(filter, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  let filtered;
+  if (filter==='ALL') filtered = allTokens;
+  else if (filter==='LITERAL') filtered = allTokens.filter(t=>LIT_TYPES.has(t.token_type));
+  else if (filter==='PUNCTUATION') filtered = allTokens.filter(t=>PUNCT_TYPES.has(t.token_type));
+  else filtered = allTokens.filter(t=>t.token_type===filter);
+  fillTokenTable(filtered);
+}
+
+// ── RENDER SYNTAX ──────────────────────────────────────────────────────────
+function renderSyntax(errors, grammar) {
+  const panel = document.getElementById('syntax-errors-panel');
+  if (!errors || errors.length===0) {
+    panel.innerHTML = '<div class="no-errors">✅ No syntax errors detected</div>';
+  } else {
+    panel.innerHTML = errors.map(e => `
+      <div class="err-card">
+        <div class="err-head">
+          <span class="badge badge-red">${esc(e.severity||'ERROR')}</span>
+          <span class="badge badge-gray mono">${esc(e.type)}</span>
+          ${e.line ? `<span style="font-size:12px;color:var(--text2)">Line ${e.line}${e.column?':'+e.column:''}</span>`:''}
+        </div>
+        <div class="err-msg">${esc(e.message)}</div>
+        ${e.snippet ? `<div class="err-snippet">${esc(e.snippet)}</div>`:''}
+      </div>`).join('');
+  }
+  const gl = document.getElementById('grammar-list');
+  gl.innerHTML = (grammar||[]).map(r=>`<div class="grammar-rule">${esc(r)}</div>`).join('');
+}
+
+// ── RENDER AST (GRAPHICAL VISUAL TREE & OUTLINE) ──────────────────────────
+let astZoomLevel = 1.0;
+
+function zoomAST(delta) {
+  astZoomLevel = Math.max(0.2, Math.min(2.5, Math.round((astZoomLevel + delta) * 100) / 100));
+  applyASTZoom();
+}
+
+function resetASTZoom() {
+  astZoomLevel = 1.0;
+  applyASTZoom();
+}
+
+function applyASTZoom() {
+  const g = document.getElementById('ast-svg-viewport');
+  if (g) {
+    g.setAttribute('transform', `scale(${astZoomLevel})`);
+  }
+}
+
+function getNodeColor(type) {
+  if (type === 'ProgramNode') return '#58a6ff';
+  if (type === 'FunctionDeclNode') return '#bc8cff';
+  if (type === 'CompoundStmtNode') return '#7d8590';
+  if (type === 'VarDeclNode' || type === 'ArrayDeclNode') return '#39d353';
+  if (type === 'AssignExprNode') return '#20c997';
+  if (type === 'IfStmtNode' || type === 'WhileStmtNode' || type === 'ForStmtNode') return '#e3b341';
+  if (type === 'ReturnStmtNode') return '#d29922';
+  if (type === 'ErrorNode') return '#f85149';
+  return '#8b949e';
+}
+
+function renderAST(json) {
+  astData = json;
+  if (!json || !json.node_type) {
+    document.getElementById('ast-svg-wrapper').innerHTML = '<div style="color:var(--text2);padding:20px">No AST data.</div>';
+    document.getElementById('ast-container').innerHTML = '<div style="color:var(--text2);padding:20px">No AST data.</div>';
+    return;
+  }
+  // Render both Visual Tree Graph and Nested Outline
+  renderSVGTreeGraph(json);
+  document.getElementById('ast-container').innerHTML = buildASTTree(json);
+  document.getElementById('ast-json-pre').textContent = JSON.stringify(json, null, 2);
+}
+
+function renderSVGTreeGraph(root) {
+  const wrapper = document.getElementById('ast-svg-wrapper');
+  if (!root || !root.node_type) return;
+
+  const NODE_W = 160;
+  const NODE_H = 50;
+  const GAP_X = 24;
+  const GAP_Y = 80;
+
+  // 1. Recursive Layout Calculation
+  function layoutTree(node, depth) {
+    const item = {
+      node_type: node.node_type || "Unknown",
+      value: node.value || "",
+      line: node.line || 0,
+      depth: depth,
+      children: []
+    };
+    if (!node.children || node.children.length === 0) {
+      item.width = NODE_W;
+      return item;
+    }
+    let childTotalW = 0;
+    for (let c of node.children) {
+      const childLayout = layoutTree(c, depth + 1);
+      item.children.push(childLayout);
+      childTotalW += childLayout.width;
+    }
+    childTotalW += (item.children.length - 1) * GAP_X;
+    item.width = Math.max(NODE_W, childTotalW);
+    return item;
+  }
+
+  const rootLayout = layoutTree(root, 0);
+
+  // 2. Assign absolute (x, y) coordinates
+  function assignCoords(node, leftX) {
+    node.y = node.depth * (NODE_H + GAP_Y) + 30;
+    if (node.children.length === 0) {
+      node.x = leftX + node.width / 2;
+    } else {
+      let curX = leftX;
+      for (let child of node.children) {
+        assignCoords(child, curX);
+        curX += child.width + GAP_X;
+      }
+      const firstX = node.children[0].x;
+      const lastX = node.children[node.children.length - 1].x;
+      node.x = (firstX + lastX) / 2;
+    }
+  }
+
+  assignCoords(rootLayout, 40);
+
+  // 3. Determine Canvas Bounds
+  let maxX = rootLayout.width + 120, maxY = 0;
+  function findBounds(node) {
+    if (node.y + NODE_H + 50 > maxY) maxY = node.y + NODE_H + 50;
+    if (node.x + NODE_W / 2 + 60 > maxX) maxX = node.x + NODE_W / 2 + 60;
+    for (let c of node.children) findBounds(c);
+  }
+  findBounds(rootLayout);
+
+  const svgW = Math.max(maxX, 900);
+  const svgH = Math.max(maxY, 550);
+
+  // 4. Generate SVG elements
+  let linksHTML = '';
+  let nodesHTML = '';
+
+  function generateSVG(node) {
+    const parentBottomX = node.x;
+    const parentBottomY = node.y + NODE_H;
+
+    for (let child of node.children) {
+      const childTopX = child.x;
+      const childTopY = child.y;
+      const midY = (parentBottomY + childTopY) / 2;
+      const isErr = child.node_type === 'ErrorNode';
+      const strokeCol = isErr ? '#f85149' : '#30363d';
+      const strokeW = isErr ? '2.5' : '1.8';
+
+      linksHTML += `<path d="M ${parentBottomX} ${parentBottomY} C ${parentBottomX} ${midY}, ${childTopX} ${midY}, ${childTopX} ${childTopY}" fill="none" stroke="${strokeCol}" stroke-width="${strokeW}" stroke-linecap="round" />`;
+      generateSVG(child);
+    }
+
+    const col = getNodeColor(node.node_type);
+    const boxX = node.x - NODE_W / 2;
+    const boxY = node.y;
+    const isErr = node.node_type === 'ErrorNode';
+    const bgCol = isErr ? '#2d1117' : '#161b22';
+    const borderCol = isErr ? '#f85149' : col;
+
+    let valStr = String(node.value || '').trim();
+    if (valStr.length > 18) valStr = valStr.substring(0, 16) + '…';
+
+    nodesHTML += `
+      <g class="ast-graph-node">
+        <rect x="${boxX}" y="${boxY}" width="${NODE_W}" height="${NODE_H}" rx="8" ry="8" fill="${bgCol}" stroke="${borderCol}" stroke-width="1.8" filter="drop-shadow(0 2px 6px rgba(0,0,0,0.5))"/>
+        <line x1="${boxX}" y1="${boxY + 22}" x2="${boxX + NODE_W}" y2="${boxY + 22}" stroke="${borderCol}" stroke-width="0.7" opacity="0.4"/>
+        <text x="${node.x}" y="${boxY + 15}" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="11" font-weight="700" fill="${col}">${esc(node.node_type)}</text>
+        ${valStr ? `<text x="${node.x}" y="${boxY + 38}" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="11" font-weight="500" fill="#e6edf3">${esc(valStr)}</text>` : ''}
+        ${node.line ? `<text x="${boxX + NODE_W - 6}" y="${boxY + 14}" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="9" fill="#7d8590">:${node.line}</text>` : ''}
+      </g>`;
+  }
+
+  generateSVG(rootLayout);
+
+  wrapper.innerHTML = `
+    <svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" style="display:block;min-width:100%">
+      <g id="ast-svg-viewport" transform="scale(${astZoomLevel})" style="transform-origin: top center; transition: transform 0.2s ease">
+        ${linksHTML}
+        ${nodesHTML}
+      </g>
+    </svg>`;
+}
+
+function buildASTTree(node, depth=0) {
+  if (!node) return '';
+  const hasChildren = node.children && node.children.length > 0;
+  const cls = 'ast-' + (node.node_type||'Unknown');
+  const val = node.value ? `<span class="ast-val">${esc(node.value)}</span>` : '';
+  const line = node.line ? `<span class="ast-line">:${node.line}</span>` : '';
+  const toggle = hasChildren ? `<span class="ast-toggle">▾</span>` : `<span class="ast-toggle"> </span>`;
+  const children = hasChildren
+    ? `<div class="ast-children">${node.children.map(c=>buildASTTree(c,depth+1)).join('')}</div>`
+    : '';
+  return `
+    <div class="ast-node">
+      <div class="ast-row" onclick="toggleASTNode(this)">
+        ${toggle}
+        <span class="ast-type ${cls}">${esc(node.node_type)}</span>
+        ${val}${line}
+      </div>
+      ${children}
+    </div>`;
+}
+
+function toggleASTNode(row) {
+  const ch = row.nextElementSibling;
+  if (!ch || !ch.classList.contains('ast-children')) return;
+  const collapsed = ch.classList.toggle('collapsed');
+  const tog = row.querySelector('.ast-toggle');
+  if (tog) tog.textContent = collapsed ? '▸' : '▾';
+}
+
+function expandAll()  { document.querySelectorAll('.ast-children').forEach(c=>c.classList.remove('collapsed')); document.querySelectorAll('.ast-toggle').forEach(t=>{if(t.textContent==='▸')t.textContent='▾'}); }
+function collapseAll(){ document.querySelectorAll('.ast-children').forEach(c=>c.classList.add('collapsed'));    document.querySelectorAll('.ast-toggle').forEach(t=>{if(t.textContent==='▾')t.textContent='▸'}); }
+
+function setASTView(view) {
+  currentASTView = view;
+  document.getElementById('ast-graph-container').style.display = view === 'graph' ? 'block' : 'none';
+  document.getElementById('ast-container').style.display       = view === 'tree' ? 'block' : 'none';
+  document.getElementById('ast-json-view').style.display       = view === 'json' ? 'block' : 'none';
+
+  document.getElementById('ast-graph-btn').style.cssText = view === 'graph' ? 'border-color:var(--blue);color:var(--blue)' : '';
+  document.getElementById('ast-tree-btn').style.cssText  = view === 'tree' ? 'border-color:var(--blue);color:var(--blue)' : '';
+  document.getElementById('ast-json-btn').style.cssText  = view === 'json' ? 'border-color:var(--blue);color:var(--blue)' : '';
+
+  const zoomCtrl = document.getElementById('ast-zoom-controls');
+  const outCtrl = document.getElementById('ast-outline-controls');
+  if (zoomCtrl) zoomCtrl.style.display = view === 'graph' ? 'flex' : 'none';
+  if (outCtrl) outCtrl.style.display   = view === 'tree' ? 'flex' : 'none';
+}
+
+// ── RENDER SEMANTIC ────────────────────────────────────────────────────────
+function renderSemantic(issues, symbols, scope) {
+  const panel = document.getElementById('sem-issues-panel');
+  if (!issues||issues.length===0) {
+    panel.innerHTML='<div class="no-errors">✅ No semantic issues detected</div>';
+  } else {
+    panel.innerHTML = issues.map(i=>`
+      <div class="sem-card ${i.severity}">
+        <div class="sem-head">
+          <span class="badge ${i.severity==='ERROR'?'badge-red':i.severity==='WARNING'?'badge-orange':'badge-blue'}">${esc(i.severity)}</span>
+          <span class="badge badge-gray" style="font-family:monospace">${esc(i.type)}</span>
+          ${i.line?`<span style="font-size:12px;color:var(--text2)">Line ${i.line}</span>`:''}
+        </div>
+        <div style="font-size:13px">${esc(i.message)}</div>
+        ${i.snippet?`<div class="err-snippet">${esc(i.snippet)}</div>`:''}
+        ${i.suggestion?`<div class="err-fix">💡 ${esc(i.suggestion)}</div>`:''}
+      </div>`).join('');
+  }
+  // symbol table
+  const tbody = document.getElementById('sym-tbody');
+  tbody.innerHTML = (symbols||[]).map(s=>`
+    <tr>
+      <td style="color:var(--blue)">${esc(s.name)}</td>
+      <td style="color:var(--purple)">${esc(s.type)}</td>
+      <td>${esc(s.kind)}</td>
+      <td style="color:var(--text2);font-size:11px">${esc(s.scope||'')}</td>
+      <td>${s.line||''}</td>
+      <td>${s.initialized?'✅':'⚠️'}</td>
+    </tr>`).join('');
+  // scope summary
+  const si = document.getElementById('scope-info');
+  if (scope) {
+    si.innerHTML = `
+      <div style="margin-bottom:6px"><b>Total scopes:</b> ${scope.total_scopes||0}</div>
+      <div style="margin-bottom:4px"><b>Functions:</b> ${(scope.functions||[]).join(', ')||'—'}</div>
+      <div><b>Variables:</b> ${(scope.variables||[]).join(', ')||'—'}</div>`;
+  }
+}
+
+// ── RENDER SECURITY ────────────────────────────────────────────────────────
+function renderSecurity(sec) {
+  const score = sec.security_score || 100;
+  const threat = (sec.overall_threat||'SECURE').toUpperCase();
+  const vulns  = sec.vulnerabilities || [];
+
+  const banner = document.getElementById('threat-banner');
+  banner.className = 'threat-banner';
+  if (threat.includes('CRITICAL')||threat.includes('HIGH')) banner.classList.add('CRITICAL');
+  else if (threat.includes('MEDIUM')) banner.classList.add('MEDIUM');
+  else banner.classList.add('SECURE');
+
+  document.getElementById('threat-label').textContent = threat;
+  document.getElementById('threat-sub').textContent = vulns.length > 0
+    ? `${vulns.length} vulnerability/ies found`
+    : 'No vulnerabilities detected';
+  document.getElementById('sec-score-val').textContent = score;
+
+  const arc = document.getElementById('score-arc');
+  const circ = 2 * Math.PI * 26;
+  const offset = circ * (1 - score/100);
+  arc.setAttribute('stroke-dashoffset', offset);
+  arc.setAttribute('stroke', score>=80?'#3fb950':score>=50?'#d29922':'#f85149');
+
+  const vl = document.getElementById('vuln-list');
+  vl.innerHTML = vulns.map(v=>{
+    const sev = (v.severity||'').toUpperCase();
+    const cls = sev==='CRITICAL'?'badge-red':sev==='HIGH'?'badge-red':sev==='MEDIUM'?'badge-orange':sev==='LOW'?'badge-yellow':'badge-gray';
+    return `<div class="vuln-card">
+      <div class="vuln-head">
+        <span class="badge ${cls}">${esc(sev)}</span>
+        <span style="font-size:14px;font-weight:600">${esc(v.name||v.type||'Vulnerability')}</span>
+        <span class="vuln-cwe">${esc(v.id||'')}</span>
+      </div>
+      ${v.line?`<div style="font-size:12px;color:var(--text2);margin-bottom:6px">Line ${v.line}</div>`:''}
+      ${v.snippet?`<div class="err-snippet">${esc(v.snippet)}</div>`:''}
+      ${v.exploit?`<div class="vuln-section"><div class="vuln-section-title">⚡ Attack Vector</div><div class="vuln-text">${esc(v.exploit)}</div></div>`:''}
+      ${v.mitigation?`<div class="vuln-section"><div class="vuln-section-title">🛡 Mitigation</div><div class="vuln-text">${esc(v.mitigation)}</div></div>`:''}
+    </div>`;
+  }).join('');
+
+  document.getElementById('hardened-code').textContent = sec.hardened_code || '—';
+}
+
+// ── RENDER GREEN ──────────────────────────────────────────────────────────
+function renderGreen(g) {
+  const grade = g.eco_grade || '—';
+  const score = g.eco_score || 0;
+  const gradeEl = document.getElementById('eco-grade-disp');
+  gradeEl.textContent = grade;
+  gradeEl.className = 'eco-grade eco-' + grade.replace('+','\\+');
+  // Try without escaping too:
+  gradeEl.style.color = score>=90?'#3fb950':score>=70?'#39d353':score>=50?'#e3b341':score>=30?'#d29922':'#f85149';
+  document.getElementById('eco-status-text').textContent = g.eco_status || '';
+  document.getElementById('eco-bar').style.width = score + '%';
+  document.getElementById('eco-score-num').textContent = score + '/100';
+  document.getElementById('g-complexity').textContent  = g.time_complexity || '—';
+  document.getElementById('g-energy').textContent      = g.energy_microjoules != null ? g.energy_microjoules : '—';
+  document.getElementById('g-cycles').textContent      = g.estimated_cpu_cycles != null ? g.estimated_cpu_cycles.toLocaleString() : '—';
+  document.getElementById('g-carbon').textContent      = g.carbon_gco2_per_10m != null ? g.carbon_gco2_per_10m : '—';
+
+  const gm = g.green_metrics || {};
+  document.getElementById('green-metrics-row').innerHTML = [
+    ['Loops', gm.loop_count||0],
+    ['Nested Loops', gm.nested_loops||0],
+    ['Dyn. Allocs', gm.dynamic_allocs||0],
+    ['I/O Calls', gm.io_calls||0],
+  ].map(([label,val])=>`<div class="metric-card"><div class="metric-val">${val}</div><div class="metric-label">${label}</div></div>`).join('');
+
+  const recs = g.recommendations || [];
+  document.getElementById('rec-list').innerHTML = recs.length
+    ? recs.map(r=>`<li>${esc(r)}</li>`).join('')
+    : '<li style="color:var(--green)">Code is already well-optimized!</li>';
+}
+
+// ── RENDER REPAIR ─────────────────────────────────────────────────────────
+function renderRepair(rep) {
+  const healed = rep.healed_code || '';
+  document.getElementById('healed-code-pre').textContent = healed || '—';
+  document.getElementById('r-turns').textContent  = rep.turns_taken ?? '—';
+  document.getElementById('r-status').textContent = rep.success ? '✅ Repaired' : '⚠️ Partial';
+  document.getElementById('r-status').style.color = rep.success ? 'var(--green)' : 'var(--orange)';
+
+  // Diff
+  renderDiff(state.originalCode, healed);
+
+  // Thought trail
+  const thoughts = rep.thoughts || [];
+  const trail = document.getElementById('thought-trail');
+  trail.innerHTML = thoughts.map(t=>{
+    const phase = t.phase || 'Action';
+    const turnKey = phase.split(' ')[0];
+    return `<div class="thought-item">
+      <div class="thought-turn ${turnKey}">${t.turn||'—'}</div>
+      <div class="thought-body">
+        <div class="thought-phase">${esc(phase)}</div>
+        <div class="thought-msg">${esc(t.message||'')}</div>
+        ${t.timestamp?`<div style="font-size:11px;color:var(--text2)">${esc(t.timestamp)}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderDiff(original, healed) {
+  const origLines   = (original||'').split('\n');
+  const healedLines = (healed||'').split('\n');
+  const leftHTML  = [];
+  const rightHTML = [];
+  const maxLen = Math.max(origLines.length, healedLines.length);
+  for (let i=0; i<maxLen; i++) {
+    const ol = origLines[i]  ?? '';
+    const hl = healedLines[i] ?? '';
+    const changed = ol !== hl;
+    leftHTML.push(`<div class="diff-line ${changed?'del':'same'}"><span class="ln">${i+1}</span>${esc(ol)}</div>`);
+    rightHTML.push(`<div class="diff-line ${changed?'add':'same'}"><span class="ln">${i+1}</span>${esc(hl)}</div>`);
+  }
+  document.getElementById('diff-container').innerHTML = `
+    <div class="diff-side">
+      <div class="diff-header">⬅ Original</div>
+      ${leftHTML.join('')}
+    </div>
+    <div class="diff-side" style="border-left:1px solid var(--border)">
+      <div class="diff-header">➡ Repaired</div>
+      ${rightHTML.join('')}
+    </div>`;
+}
+
+// ── REPAIR TABS ───────────────────────────────────────────────────────────
+function switchRepairTab(name, btn) {
+  ['repaired','diff','trail'].forEach(n=>{
+    const el = document.getElementById('rt-'+n);
+    if(el) el.style.display = n===name ? 'block' : 'none';
+  });
+  document.querySelectorAll('.rtab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+}
+
+// ── UPDATE REPORT ─────────────────────────────────────────────────────────
+function updateReport() {
+  const se = (state.analyze?.syntax_errors||[]).length;
+  const si = (state.analyze?.semantic_issues||[]).length;
+  const vu = (state.repair?.security_shield?.vulnerabilities||[]).length;
+  const gr = state.repair?.green_computing?.eco_grade||'—';
+  const rep= state.repair?.repair?.success;
+
+  document.getElementById('rs-errors').textContent  = se;
+  document.getElementById('rs-sem').textContent     = si;
+  document.getElementById('rs-vuln').textContent    = vu;
+  document.getElementById('rs-grade').textContent   = gr;
+  document.getElementById('rs-repair').textContent  = rep!=null ? (rep?'✅ Done':'⚠️ Partial') : '—';
+
+  const prev = document.getElementById('report-preview');
+  const lines = [
+    '═══════════════════════════════════════════',
+    ' AGENTIC AI CODE ANALYSIS PLATFORM — REPORT',
+    '═══════════════════════════════════════════',
+    '',
+    `▸ Syntax Errors:    ${se}`,
+    `▸ Semantic Issues:  ${si}`,
+    `▸ Vulnerabilities:  ${vu}`,
+    `▸ Eco Grade:        ${gr}`,
+    `▸ Repair:           ${rep!=null?(rep?'SUCCESS':'PARTIAL'):'N/A'}`,
+    '',
+    '── SYNTAX ERRORS ──',
+    ...(state.analyze?.syntax_errors||[]).map(e=>`  [${e.severity}] Line ${e.line}: ${e.message}`),
+    '',
+    '── SEMANTIC ISSUES ──',
+    ...(state.analyze?.semantic_issues||[]).map(i=>`  [${i.severity}] ${i.type} — ${i.message}`),
+    '',
+    '── VULNERABILITIES ──',
+    ...(state.repair?.security_shield?.vulnerabilities||[]).map(v=>`  [${v.severity}] ${v.id} ${v.name}`),
+    '',
+    '── REPAIRED CODE ──',
+    state.repair?.repair?.healed_code||'N/A',
+  ];
+  prev.textContent = lines.join('\n');
+}
+
+// ── DOWNLOAD REPORT ───────────────────────────────────────────────────────
+function downloadReport(fmt) {
+  let content, filename, type;
+  if (fmt==='json') {
+    content  = JSON.stringify({analyze:state.analyze, repair:state.repair}, null, 2);
+    filename = 'analysis_report.json';
+    type     = 'application/json';
+  } else {
+    content  = document.getElementById('report-preview').textContent;
+    filename = 'analysis_report.txt';
+    type     = 'text/plain';
+  }
+  const blob = new Blob([content],{type});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=filename; a.click();
+}
+
+
+// ── PIPELINE TRACKER ──────────────────────────────────────────────────────
+const PIPELINE_STEPS = ['input','ml','orch','perceive','ast','reflect','action','verify','green','sec','optim','done'];
+function resetPipeline() {
+  PIPELINE_STEPS.forEach(id => {
+    const el = document.getElementById('ps-' + id);
+    if (el) { el.className = 'pipeline-step'; }
+  });
+  const info = document.getElementById('agent-phase-info');
+  if (info) info.textContent = 'Analysis running…';
+}
+function setPipelineStep(stepId, state='active', label='') {
+  const el = document.getElementById('ps-' + stepId);
+  if (el) { el.className = 'pipeline-step ' + state; }
+  const info = document.getElementById('agent-phase-info');
+  if (info && label) info.textContent = label;
+}
+function markPipelineDone(upToStep) {
+  const idx = PIPELINE_STEPS.indexOf(upToStep);
+  PIPELINE_STEPS.slice(0, idx+1).forEach(id => {
+    const el = document.getElementById('ps-' + id);
+    if (el) el.className = 'pipeline-step done';
+  });
+}
+
+// ── RENDER OPTIMIZER ──────────────────────────────────────────────────────
+function renderOptimizer(d, originalCode) {
+  document.getElementById('opt-before-time').textContent  = d.before_time  || '—';
+  document.getElementById('opt-after-time').textContent   = d.after_time   || '—';
+  document.getElementById('opt-before-space').textContent = d.before_space || '—';
+  document.getElementById('opt-after-space').textContent  = d.after_space  || '—';
+
+  // Color code: if same → gray, if improved → green, else red
+  const timeEl  = document.getElementById('opt-after-time');
+  const spaceEl = document.getElementById('opt-after-space');
+  timeEl.style.color  = d.after_time  !== d.before_time  ? 'var(--green)' : 'var(--text2)';
+  spaceEl.style.color = d.after_space !== d.before_space ? 'var(--green)' : 'var(--text2)';
+
+  // Changes list
+  const chEl = document.getElementById('opt-changes-list');
+  const changes = d.changes || [];
+  if (changes.length === 0) {
+    chEl.innerHTML = '<div style="color:var(--green)">✅ No optimizations needed — code is clean.</div>';
+  } else {
+    chEl.innerHTML = changes.map(c => `
+      <div class="opt-change ${c.impact}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span class="badge ${c.impact==='Critical'?'badge-red':c.impact==='High'?'badge-orange':c.impact==='Medium'?'badge-yellow':c.impact==='Low'?'badge-blue':'badge-green'}">${esc(c.impact)}</span>
+          <span style="font-weight:600;font-size:13px">${esc(c.type)}</span>
+        </div>
+        <div style="font-size:13px;margin-bottom:4px">${esc(c.description)}</div>
+        <div style="font-size:12px;color:var(--text2)">${esc(c.reason)}</div>
+      </div>`).join('');
+  }
+
+  // Tips
+  const tips = d.tips || [];
+  document.getElementById('opt-tips-list').innerHTML = tips.length
+    ? tips.map(t => `<li>${esc(t)}</li>`).join('')
+    : '<li style="color:var(--green)">Code already optimal!</li>';
+
+  // Diff original vs optimized
+  const origLines = (originalCode||'').split('\n');
+  const optLines  = (d.optimized_code||'').split('\n');
+  const maxLen = Math.max(origLines.length, optLines.length);
+  const leftHTML = [], rightHTML = [];
+  for (let i=0; i<maxLen; i++) {
+    const ol = origLines[i] ?? '';
+    const nl = optLines[i]  ?? '';
+    const changed = ol !== nl;
+    leftHTML.push(`<div class="diff-line ${changed?'del':'same'}"><span class="ln">${i+1}</span>${esc(ol)}</div>`);
+    rightHTML.push(`<div class="diff-line ${changed?'add':'same'}"><span class="ln">${i+1}</span>${esc(nl)}</div>`);
+  }
+  document.getElementById('opt-diff-left').innerHTML  = leftHTML.join('');
+  document.getElementById('opt-diff-right').innerHTML = rightHTML.join('');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+
+document.getElementById('code-editor').value = `#include<iostream>
+using namespace std;
+
+int main() {
+    char buf[16];
+    gets(buf);
+
+    int a = 10
+    int b = 20
+    int c = a + b;
+    cout << c;
+    return 0;
+}`;
+syncLines();
+</script>
+</body>
+</html>
