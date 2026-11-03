@@ -25,7 +25,16 @@ debug_hang.py
 *.fixed.cpp
 *.fixed.fixed.cpp
 
-# Obsolete backups
+# Obsolete backups & presentations
 *_old.py
 server2.py
 presentation.key
+*.key
+*.pptx
+presentation.html
+performance.html
+tokens.csv
+features.csv
+augmented_dataset/
+CD_Project/
+performance_analysis/
