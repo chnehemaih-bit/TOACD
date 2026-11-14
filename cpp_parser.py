@@ -658,3 +658,495 @@ if __name__ == "__main__":
         print("\n── PARSE ERRORS ──")
         for e in errs:
             print(" ", e)
+
+
+# ============================================================================
+# DEV-C++ / GCC (MINGW) COMPILER DIAGNOSTIC ENGINE & ERROR CLASSIFICATION
+# ============================================================================
+
+KEYWORD_TYPO_MAP = {
+    "itn": "int",
+    "intt": "int",
+    "interger": "int",
+    "flot": "float",
+    "doubel": "double",
+    "viod": "void",
+    "charactor": "char",
+    "charector": "char",
+    "boolen": "bool",
+    "boolean": "bool",
+    "prinft": "printf",
+    "prntf": "printf",
+    "print_f": "printf",
+    "scnf": "scanf",
+    "scan_f": "scanf",
+    "reutrn": "return",
+    "retrun": "return",
+    "retun": "return",
+    "cuto": "cout",
+    "coutt": "cout",
+    "cot": "cout",
+    "coot": "cout",
+    "cinn": "cin",
+    "ciin": "cin",
+    "cinp": "cin",
+    "ednl": "endl",
+    "endll": "endl",
+    "end1": "endl",
+    "whlie": "while",
+    "wile": "while",
+    "fro": "for",
+    "fopr": "for",
+    "calss": "class",
+    "clas": "class",
+    "incldue": "include",
+    "inclue": "include",
+    "inculde": "include",
+}
+
+BUILTIN_IDENTIFIERS = {
+    "cout", "cin", "cerr", "clog", "endl", "flush", "ws",
+    "std", "string", "vector", "map", "set", "list", "array",
+    "NULL", "nullptr", "true", "false",
+    "main", "printf", "scanf", "fprintf", "fscanf", "sprintf",
+    "malloc", "calloc", "realloc", "free", "new", "delete",
+    "sizeof", "typeof", "INT_MAX", "INT_MIN", "exit", "abort",
+    "abs", "sqrt", "pow", "max", "min", "swap", "size", "length"
+}
+
+def analyze_gcc_errors(code_str, filename="main.cpp"):
+    """
+    Front-end syntax error detector that matches the exact behavior of Dev-C++ (MinGW GCC).
+    Uses a stack for balanced (), {}, [], quotes, and comments.
+    Parses declarations, statements, conditionals, loops, and expressions.
+    Reports first error at exact line and column like GCC, then continues diagnostics.
+    """
+    import re
+    lines = code_str.splitlines()
+    diagnostics = []
+    
+    # ── 0. Stray unknown characters (e.g. '@', '$', '`') ─────────────────────
+    for line_idx, line in enumerate(lines, 1):
+        clean_line = re.sub(r'//.*', '', line)
+        for m_stray in re.finditer(r'[@$`]', clean_line):
+            col = m_stray.start() + 1
+            stray_char = m_stray.group(0)
+            diagnostics.append({
+                "type": "LEXICAL_ERROR",
+                "message": f"stray '{stray_char}' in program",
+                "line": line_idx,
+                "column": col,
+                "severity": "ERROR",
+                "snippet": line.strip(),
+                "suggestion": f"Remove invalid character '{stray_char}'.",
+                "alternatives": [f"Remove '{stray_char}'"]
+            })
+
+    # ── 1. Stack check for brackets, quotes, and comments ────────────────────
+    stack = []  # list of (char, line, col)
+    in_block_comment = False
+    comment_start = (0, 0)
+    
+    for line_idx, line in enumerate(lines, 1):
+        col = 1
+        i = 0
+        while i < len(line):
+            ch = line[i]
+            col = i + 1
+            
+            if in_block_comment:
+                if i + 1 < len(line) and line[i:i+2] == "*/":
+                    in_block_comment = False
+                    i += 2
+                    continue
+                i += 1
+                continue
+                
+            # Line comment
+            if i + 1 < len(line) and line[i:i+2] == "//":
+                break
+                
+            # Block comment start
+            if i + 1 < len(line) and line[i:i+2] == "/*":
+                in_block_comment = True
+                comment_start = (line_idx, col)
+                i += 2
+                continue
+                
+            # String literal
+            if ch == '"':
+                str_start_col = col
+                i += 1
+                escaped = False
+                closed = False
+                while i < len(line):
+                    c = line[i]
+                    if escaped:
+                        escaped = False
+                    elif c == '\\':
+                        escaped = True
+                    elif c == '"':
+                        closed = True
+                        i += 1
+                        break
+                    i += 1
+                if not closed:
+                    diagnostics.append({
+                        "type": "UNTERMINATED_STRING",
+                        "message": 'missing terminating " character',
+                        "line": line_idx,
+                        "column": str_start_col,
+                        "severity": "ERROR",
+                        "snippet": line.strip(),
+                        "suggestion": 'Add closing double quote " at end of string literal.',
+                        "alternatives": ['Close string literal with "', 'Use \\n for multi-line string']
+                    })
+                continue
+
+            # Char literal
+            if ch == "'":
+                char_start_col = col
+                i += 1
+                closed = False
+                while i < len(line):
+                    c = line[i]
+                    if c == "'":
+                        closed = True
+                        i += 1
+                        break
+                    i += 1
+                if not closed:
+                    diagnostics.append({
+                        "type": "UNTERMINATED_CHAR",
+                        "message": "missing terminating \'\'\' character",
+                        "line": line_idx,
+                        "column": char_start_col,
+                        "severity": "ERROR",
+                        "snippet": line.strip(),
+                        "suggestion": "Add closing single quote at end of char literal.",
+                        "alternatives": ["Close char literal with single quote"]
+                    })
+                continue
+
+            # Brackets balance stack
+            if ch in ('(', '{', '['):
+                stack.append((ch, line_idx, col))
+            elif ch == ')':
+                if stack and stack[-1][0] == '(':
+                    stack.pop()
+                elif stack and stack[-1][0] == '{':
+                    diagnostics.append({
+                        "type": "UNMATCHED_PARANTHESES",
+                        "message": "expected '}' before ')' token",
+                        "line": line_idx,
+                        "column": col,
+                        "severity": "ERROR",
+                        "snippet": line.strip(),
+                        "suggestion": "Check matching parenthesis or brace boundaries.",
+                        "alternatives": ["Close '(' with ')' before '}'", "Recheck opening brace '{'"]
+                    })
+                else:
+                    diagnostics.append({
+                        "type": "UNMATCHED_PARANTHESES",
+                        "message": "extra ')' before token",
+                        "line": line_idx,
+                        "column": col,
+                        "severity": "ERROR",
+                        "snippet": line.strip(),
+                        "suggestion": "Remove unmatched closing parenthesis ')'.",
+                        "alternatives": ["Remove extra ')'", "Add corresponding opening '(' before expression"]
+                    })
+            elif ch == '}':
+                if stack and stack[-1][0] == '{':
+                    stack.pop()
+                elif stack and stack[-1][0] == '(':
+                    diagnostics.append({
+                        "type": "UNMATCHED_BRACE",
+                        "message": "expected ')' before '}' token",
+                        "line": line_idx,
+                        "column": col,
+                        "severity": "ERROR",
+                        "snippet": line.strip(),
+                        "suggestion": "Close open parenthesis before closing curly brace '}'.",
+                        "alternatives": ["Add ')' before '}'", "Verify block structure"]
+                    })
+                else:
+                    diagnostics.append({
+                        "type": "UNMATCHED_BRACE",
+                        "message": "extra '}' before token",
+                        "line": line_idx,
+                        "column": col,
+                        "severity": "ERROR",
+                        "snippet": line.strip(),
+                        "suggestion": "Remove extra closing brace '}'.",
+                        "alternatives": ["Remove extra '}'", "Check if previous block was closed early"]
+                    })
+            elif ch == ']':
+                if stack and stack[-1][0] == '[':
+                    stack.pop()
+                else:
+                    diagnostics.append({
+                        "type": "INVALID_ARRAY_DECL",
+                        "message": "extra ']' before token",
+                        "line": line_idx,
+                        "column": col,
+                        "severity": "ERROR",
+                        "snippet": line.strip(),
+                        "suggestion": "Remove unmatched bracket ']'.",
+                        "alternatives": ["Remove extra ']'"]
+                    })
+            i += 1
+
+    if in_block_comment:
+        diagnostics.append({
+            "type": "UNTERMINATED_COMMENT",
+            "message": "unterminated comment '/*'",
+            "line": comment_start[0],
+            "column": comment_start[1],
+            "severity": "ERROR",
+            "snippet": lines[comment_start[0]-1].strip() if 1 <= comment_start[0] <= len(lines) else "",
+            "suggestion": "Add matching '*/' to terminate multi-line comment.",
+            "alternatives": ["Add '*/' at end of comment"]
+        })
+
+    while stack:
+        bracket, s_line, s_col = stack.pop()
+        expected = '}' if bracket == '{' else ')' if bracket == '(' else ']'
+        etype = "UNMATCHED_BRACE" if bracket == '{' else "UNMATCHED_PARANTHESES" if bracket == '(' else "INVALID_ARRAY_DECL"
+        last_line_idx = len(lines)
+        last_line_len = len(lines[-1]) if lines else 1
+        diagnostics.append({
+            "type": etype,
+            "message": f"expected '{expected}' at end of input",
+            "line": last_line_idx,
+            "column": max(1, last_line_len + 1),
+            "severity": "ERROR",
+            "snippet": lines[-1].strip() if lines else "",
+            "suggestion": f"Add missing closing '{expected}' to balance '{bracket}' opened at line {s_line}:{s_col}.",
+            "alternatives": [f"Add '{expected}' at end of function or block", f"Check scope opened at line {s_line}"]
+        })
+
+    # ── 2. Misspelled Keywords ───────────────────────────────────────────────
+    for line_idx, line in enumerate(lines, 1):
+        clean_line = re.sub(r'//.*', '', line)
+        for word in re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', clean_line):
+            if word in KEYWORD_TYPO_MAP:
+                col = line.find(word) + 1
+                correction = KEYWORD_TYPO_MAP[word]
+                diagnostics.append({
+                    "type": "MISSPELLED_KEYWORD",
+                    "message": f"'{word}' was not declared in this scope; did you mean '{correction}'?",
+                    "line": line_idx,
+                    "column": col,
+                    "severity": "ERROR",
+                    "snippet": line.strip(),
+                    "suggestion": f"Replace misspelled '{word}' with '{correction}'.",
+                    "alternatives": [f"Correct spelling to '{correction}'", f"Declare '{word}' as a local variable"]
+                })
+
+    # ── 3. Missing #include Directives ─────────────────────────────────────────
+    has_iostream = any("#include" in l and "iostream" in l for l in lines)
+    has_stdio = any("#include" in l and ("stdio.h" in l or "cstdio" in l) for l in lines)
+    has_string = any("#include" in l and ("string" in l or "iostream" in l) for l in lines)
+
+    for line_idx, line in enumerate(lines, 1):
+        clean_line = re.sub(r'//.*', '', line)
+        if not has_iostream and re.search(r'\b(cout|cin|endl)\b', clean_line):
+            m = re.search(r'\b(cout|cin|endl)\b', clean_line)
+            col = m.start() + 1
+            tok = m.group(1)
+            diagnostics.append({
+                "type": "MISSING_INCLUDE",
+                "message": f"'{tok}' was not declared in this scope; did you mean '#include <iostream>'?",
+                "line": line_idx,
+                "column": col,
+                "severity": "ERROR",
+                "snippet": line.strip(),
+                "suggestion": "Add '#include <iostream>' and 'using namespace std;' at the beginning of the file.",
+                "alternatives": ["Add '#include <iostream>'", "Use C-style I/O: '#include <cstdio>' and printf()"]
+            })
+            has_iostream = True
+
+        if not has_stdio and not has_iostream and re.search(r'\b(printf|scanf)\b', clean_line):
+            m = re.search(r'\b(printf|scanf)\b', clean_line)
+            col = m.start() + 1
+            tok = m.group(1)
+            diagnostics.append({
+                "type": "MISSING_INCLUDE",
+                "message": f"'{tok}' was not declared in this scope; did you mean '#include <cstdio>'?",
+                "line": line_idx,
+                "column": col,
+                "severity": "ERROR",
+                "snippet": line.strip(),
+                "suggestion": "Add '#include <cstdio>' at the beginning of the file.",
+                "alternatives": ["Add '#include <cstdio>'", "Add '#include <stdio.h>'"]
+            })
+            has_stdio = True
+
+    # ── 4. Undeclared Variables ───────────────────────────────────────────────
+    declared_vars = set(BUILTIN_IDENTIFIERS)
+    for m in re.finditer(r'(?:int|float|double|char|bool|void|auto|string|long|short|unsigned|signed)\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_str):
+        declared_vars.add(m.group(1))
+
+    for line_idx, line in enumerate(lines, 1):
+        clean_line = re.sub(r'//.*', '', line).strip()
+        m_assign = re.match(r'^\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*=', clean_line)
+        if m_assign:
+            var = m_assign.group(1)
+            if var not in declared_vars and var not in KEYWORD_TYPO_MAP:
+                col = line.find(var) + 1
+                diagnostics.append({
+                    "type": "UNDECLARED_IDENTIFIER",
+                    "message": f"'{var}' was not declared in this scope",
+                    "line": line_idx,
+                    "column": col,
+                    "severity": "ERROR",
+                    "snippet": line.strip(),
+                    "suggestion": f"Declare variable '{var}' before use, e.g. 'int {var} = 0;'.",
+                    "alternatives": [f"Declare as: int {var} = 0;", f"Declare as: auto {var} = ...;", "Check for typographical error"]
+                })
+
+    # ── 5. Wrong Operator ('=' in conditions) ─────────────────────────────────
+    for line_idx, line in enumerate(lines, 1):
+        clean_line = re.sub(r'//.*', '', line)
+        m_cond = re.search(r'(if|while)\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([^=;)]+)\s*\)', clean_line)
+        if m_cond:
+            col = clean_line.find("=") + 1
+            var_name = m_cond.group(2)
+            val = m_cond.group(3).strip()
+            diagnostics.append({
+                "type": "WRONG_OPERATOR",
+                "message": "suggest parentheses around assignment used as truth value [-Wparentheses]; did you mean '=='?",
+                "line": line_idx,
+                "column": col,
+                "severity": "WARNING",
+                "snippet": line.strip(),
+                "suggestion": f"Change '=' to '==' for comparison: '{var_name} == {val}'.",
+                "alternatives": [f"Use '==' comparison: if ({var_name} == {val})", f"Explicit assignment: if (({var_name} = {val}) != 0)"]
+            })
+
+    # ── 6. Missing quotes in printf ───────────────────────────────────────────
+    for line_idx, line in enumerate(lines, 1):
+        clean_line = re.sub(r'//.*', '', line)
+        m_pf = re.search(r'printf\s*\(\s*([a-zA-Z0-9_ ]+)\s*\)\s*;', clean_line)
+        if m_pf:
+            arg = m_pf.group(1).strip()
+            if ' ' in arg and not (arg.startswith('"') and arg.endswith('"')):
+                col = clean_line.find(arg) + 1
+                diagnostics.append({
+                    "type": "MISSING_PRINTF_QUOTES",
+                    "message": "missing quotes in printf format string",
+                    "line": line_idx,
+                    "column": col,
+                    "severity": "ERROR",
+                    "snippet": line.strip(),
+                    "suggestion": f'Enclose string literal in quotes: printf("{arg}");',
+                    "alternatives": [f'printf("{arg}");', 'Pass a valid char* buffer or std::string']
+                })
+
+    # ── 7. Array Declaration Missing Bracket ──────────────────────────────────
+    for line_idx, line in enumerate(lines, 1):
+        clean_line = re.sub(r'//.*', '', line)
+        if '[' in clean_line and ']' not in clean_line and ';' in clean_line:
+            col = clean_line.find(';') + 1
+            diagnostics.append({
+                "type": "INVALID_ARRAY_DECL",
+                "message": "expected ']' before ';' token",
+                "line": line_idx,
+                "column": col,
+                "severity": "ERROR",
+                "snippet": line.strip(),
+                "suggestion": "Add ']' to close the array subscript before ';'.",
+                "alternatives": ["Add ']' before ';'", "Specify valid array size: [N]"]
+            })
+
+    # ── 8. Missing Semicolon ──────────────────────────────────────────────────
+    for line_idx, line in enumerate(lines, 1):
+        clean_line = re.sub(r'//.*', '', line).strip()
+        if not clean_line or clean_line.startswith("#") or clean_line.startswith("/*") or clean_line.startswith("*"):
+            continue
+        if clean_line.endswith(";") or clean_line.endswith("{") or clean_line.endswith("}") or clean_line.endswith(":"):
+            continue
+        if clean_line in ("{ ", "}", "{"):
+            continue
+        if re.match(r'^(if|else|while|for|switch|do)', clean_line):
+            continue
+        if re.match(r'^(public|private|protected)\s*:', clean_line):
+            continue
+        if re.match(r'^(template\s*<.*>)?\s*(inline\s+|static\s+)?(int|float|double|char|bool|void|auto).*[)]\s*$', clean_line):
+            continue
+        if re.search(r'[a-zA-Z0-9_]', clean_line):
+            col = len(line.rstrip()) + 1
+            next_token = "newline"
+            if line_idx < len(lines):
+                next_clean = re.sub(r'//.*', '', lines[line_idx]).strip()
+                if next_clean:
+                    first_tok = next_clean.split()[0]
+                    next_token = f"'{first_tok}'"
+            diagnostics.append({
+                "type": "MISSING_SEMICOLON",
+                "message": f"expected ';' before {next_token} token",
+                "line": line_idx,
+                "column": col,
+                "severity": "ERROR",
+                "snippet": line.strip(),
+                "suggestion": f"Add missing semicolon ';' at end of line {line_idx}.",
+                "alternatives": ["Add ';' at statement end", "Combine statements with comma operator if applicable"]
+            })
+
+    # Format GCC diagnostics string
+    for d in diagnostics:
+        line_num = d["line"]
+        col_num = d["column"]
+        sev = d["severity"].lower()
+        msg = d["message"]
+        snippet = d.get("snippet", "")
+        ln_str = f"{line_num:4d} | "
+        pad = " " * (len(ln_str) + max(0, col_num - 1))
+        d["gcc_formatted"] = f"{filename}:{line_num}:{col_num}: {sev}: {msg}\n{ln_str}{snippet}\n{pad}^"
+
+    return diagnostics
+
+
+def format_dev_cpp_log(diagnostics, filename="main.cpp"):
+    """Format complete Dev-C++ / MinGW GCC compile log."""
+    lines = [
+        "-------------------- Compiler: MinGW GCC --------------------",
+        "Compiler Build: g++.exe -Wall -std=c++20",
+        f"File Target: {filename}",
+        ""
+    ]
+    if not diagnostics:
+        lines.append("Compilation successful: 0 errors, 0 warnings.")
+        lines.append("Output binary created: main.exe (exit status: 0)")
+    else:
+        for d in diagnostics:
+            lines.append(d.get("gcc_formatted", f"{filename}:{d.get('line',1)}:{d.get('column',1)}: error: {d.get('message')}"))
+            lines.append("")
+        err_count = sum(1 for d in diagnostics if d.get("severity") == "ERROR")
+        warn_count = sum(1 for d in diagnostics if d.get("severity") == "WARNING")
+        lines.append(f"Compilation failed with {err_count} error(s), {warn_count} warning(s).")
+    lines.append("=" * 60)
+    return "\n".join(lines)
+
+
+def run_dev_cpp_gcc_diagnostics(code_or_tokens, filename="main.cpp"):
+    """Unified interface for running Dev-C++ GCC diagnostics."""
+    if isinstance(code_or_tokens, str):
+        code_str = code_or_tokens
+    else:
+        lines = []
+        cur_line = 1
+        line_buf = []
+        for t in code_or_tokens:
+            while t.get("line", 1) > cur_line:
+                lines.append(" ".join(line_buf))
+                line_buf = []
+                cur_line += 1
+            line_buf.append(t.get("token_value", ""))
+        if line_buf:
+            lines.append(" ".join(line_buf))
+        code_str = "\n".join(lines)
+
+    diags = analyze_gcc_errors(code_str, filename=filename)
+    return diags

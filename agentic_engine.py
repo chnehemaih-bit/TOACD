@@ -430,10 +430,11 @@ class AgenticRepairEngine:
     and validates each patch candidate using the compiler front-end.
     """
 
-    MAX_TURNS = 8
+    MAX_TURNS = 10
 
     def __init__(self):
         self.thoughts = []
+        self.changes_log = []
 
     def log_thought(self, turn, phase, message, details=None):
         self.thoughts.append({
@@ -492,7 +493,24 @@ class AgenticRepairEngine:
             except Exception:
                 pass
 
-            all_errors = list(parse_errors) + structural_errors + semantic_errors
+            # Dev-C++ GCC diagnostics validation
+            gcc_errors = []
+            try:
+                from cpp_parser import analyze_gcc_errors
+                gcc_diags = analyze_gcc_errors(code_str)
+                for gd in gcc_diags:
+                    if gd.get("severity") == "ERROR":
+                        gcc_errors.append(f"[GCCError @ line {gd.get('line',0)}] {gd.get('message')}")
+            except Exception:
+                pass
+
+            all_errors = list(parse_errors) + structural_errors + semantic_errors + gcc_errors
+            # Check for stray tokens
+            unknown_tokens = [t for t in tokens if t.get("token_type") == "UNKNOWN"]
+            if unknown_tokens:
+                first_u = unknown_tokens[0]
+                all_errors.append(f"[LexerError @ line {first_u.get('line',1)}] stray '{first_u.get('token_value')}' in program")
+
             is_valid = (len(all_errors) == 0 and not has_error_nodes)
 
             return is_valid, all_errors, ast_root
@@ -656,10 +674,15 @@ class AgenticRepairEngine:
 
         # ── Strategy 7: Fix Identifier Typos & Semantic Suggestions ──────────
         # 1. Apply semantic suggestions: e.g. 'coutt' was not declared (did you mean 'cout'?)
+        from cpp_parser import KEYWORD_TYPO_MAP
         for err in current_errors:
             m_sugg = re.search(r"'([a-zA-Z0-9_]+)' was not declared.*did you mean '([a-zA-Z0-9_]+)'", err)
             if m_sugg:
                 wrong_id, right_id = m_sugg.groups()
+                if wrong_id in KEYWORD_TYPO_MAP:
+                    right_id = KEYWORD_TYPO_MAP[wrong_id]
+                elif wrong_id in ('count', 'sum', 'total', 'idx', 'val', 'ans', 'res'):
+                    continue  # do not overwrite common variable names with builtins
                 for i, line in enumerate(lines):
                     if re.search(r'\b' + re.escape(wrong_id) + r'\b', line):
                         lines[i] = re.sub(r'\b' + re.escape(wrong_id) + r'\b', right_id, line)
@@ -667,8 +690,12 @@ class AgenticRepairEngine:
                         patched = True
 
         # 2. Heuristic repairs for common C++ typos
+        from cpp_parser import KEYWORD_TYPO_MAP
         for i, line in enumerate(lines):
             orig_line = line
+            for typo, fix in KEYWORD_TYPO_MAP.items():
+                if re.search(r'\b' + typo + r'\b', line):
+                    line = re.sub(r'\b' + typo + r'\b', fix, line)
             # Stream output typos: (coutt|cot|cuot|coot|coutn|count) <<
             line = re.sub(r'\b(coutt|cot|cuot|coot|coutn)\s*<<', r'cout <<', line)
             if re.search(r'\bcount\s*<<', line):
@@ -754,8 +781,68 @@ class AgenticRepairEngine:
             line = re.sub(r'\bconstant\b', 'const', line)
             if line != orig_l:
                 lines[i] = line
-                self.log_thought(turn, "Action", f"Repaired invalid type keyword on line {i+1}: '{line.strip()}'")
+                msg = f"Repaired invalid type keyword on line {i+1}: '{line.strip()}'"
+                self.log_thought(turn, "Action", msg)
+                self.changes_log.append({"line": i+1, "description": msg})
                 patched = True
+
+        # ── Strategy 13: Fix Missing #include Directives ────────────────────
+        full_text = "".join(lines)
+        if re.search(r'\b(cout|cin|endl)\b', full_text) and not any("#include" in l and "iostream" in l for l in lines):
+            lines.insert(0, "#include <iostream>\nusing namespace std;\n")
+            msg = "Inserted missing '#include <iostream>' and 'using namespace std;'."
+            self.log_thought(turn, "Action", msg)
+            self.changes_log.append({"line": 1, "description": msg})
+            patched = True
+
+        if re.search(r'\b(printf|scanf)\b', full_text) and not any("#include" in l and ("stdio.h" in l or "cstdio" in l) for l in lines):
+            lines.insert(0, "#include <cstdio>\n")
+            msg = "Inserted missing '#include <cstdio>' header."
+            self.log_thought(turn, "Action", msg)
+            self.changes_log.append({"line": 1, "description": msg})
+            patched = True
+
+        # ── Strategy 14: Fix Condition Assignment Operator (= vs ==) ────────
+        for i, line in enumerate(lines):
+            m_cond = re.search(r'\b(if|while)\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([^=;)]+)\s*\)', line)
+            if m_cond:
+                var_name = m_cond.group(2)
+                val = m_cond.group(3).strip()
+                lines[i] = re.sub(r'\b(if|while)\s*\(\s*' + re.escape(var_name) + r'\s*=\s*' + re.escape(val) + r'\s*\)', f'\\1 ({var_name} == {val})', line)
+                msg = f"Corrected assignment '=' to comparison '==' in conditional on line {i+1}."
+                self.log_thought(turn, "Action", msg)
+                self.changes_log.append({"line": i+1, "description": msg})
+                patched = True
+
+        # ── Strategy 15: Fix Missing Quotes in printf ────────────────────────
+        for i, line in enumerate(lines):
+            m_pf = re.search(r'\bprintf\s*\(\s*([a-zA-Z0-9_ ]+)\s*\)\s*;', line)
+            if m_pf:
+                arg = m_pf.group(1).strip()
+                if ' ' in arg and not (arg.startswith('"') and arg.endswith('"')):
+                    lines[i] = re.sub(r'\bprintf\s*\(\s*' + re.escape(arg) + r'\s*\)\s*;', f'printf("{arg}");', line)
+                    msg = f"Added missing string quotes in printf on line {i+1}."
+                    self.log_thought(turn, "Action", msg)
+                    self.changes_log.append({"line": i+1, "description": msg})
+                    patched = True
+
+        # ── Strategy 16: Fix Undeclared Variables ────────────────────────────
+        declared = set(['cout', 'cin', 'endl', 'main', 'printf', 'scanf'])
+        for l in lines:
+            for m in re.finditer(r'\b(?:int|float|double|char|bool|void|auto|string)\s+([a-zA-Z_][a-zA-Z0-9_]*)\b', l):
+                declared.add(m.group(1))
+
+        for i, line in enumerate(lines):
+            m_assign = re.match(r'^(\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([^;]+);', line)
+            if m_assign:
+                indent, var, val = m_assign.groups()
+                if var not in declared and var not in ('return', 'if', 'while', 'for'):
+                    lines[i] = f"{indent}int {var} = {val};\n"
+                    declared.add(var)
+                    msg = f"Declared previously undefined variable '{var}' as 'int {var}' on line {i+1}."
+                    self.log_thought(turn, "Action", msg)
+                    self.changes_log.append({"line": i+1, "description": msg})
+                    patched = True
 
         return lines
 
@@ -835,12 +922,35 @@ class AgenticRepairEngine:
             tofile="agent_healed.cpp"
         ))
 
+        healed_code = "".join(current_candidate_lines)
+        unresolved_line = 0
+        unresolved_reason = ""
+        if not success:
+            _, final_errors, _ = self.run_parser_validation(healed_code)
+            if final_errors:
+                m_ln = re.search(r'line\s+(\d+)', str(final_errors[0]))
+                if m_ln:
+                    unresolved_line = int(m_ln.group(1))
+                unresolved_reason = f"Line {unresolved_line or 1} could not be resolved: {final_errors[0]}"
+            else:
+                unresolved_reason = f"Could not satisfy zero-error verification after {self.MAX_TURNS} passes."
+            self.log_thought(
+                turn=self.MAX_TURNS,
+                phase="Verification Result",
+                message=f"REPAIR INCOMPLETE: {unresolved_reason} (Never claiming repaired unless re-check passes 0 errors)",
+                details={"unresolved_line": unresolved_line, "unresolved_reason": unresolved_reason}
+            )
+
         return {
             "success": success,
-            "turns_taken": turn,
+            "turns_taken": turn if success else self.MAX_TURNS,
             "original_code": source_code,
-            "healed_code": "".join(current_candidate_lines),
+            "healed_code": healed_code,
+            "corrected_code": healed_code,  # explicit separate variable for corrected code
+            "unresolved_line": unresolved_line,
+            "unresolved_reason": unresolved_reason,
             "diff": diff if diff else "(No changes required)",
+            "changes": self.changes_log,
             "thoughts": self.thoughts
         }
 

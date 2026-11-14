@@ -140,9 +140,60 @@ select.sample-select optgroup{font-weight:700;color:#1e3a8a}
 .diff-line.add{background:#dcfce7;color:#166534}
 .diff-line.same{color:#475569}
 .diff-line .ln{color:#94a3b8;margin-right:12px;display:inline-block;width:28px;text-align:right;user-select:none}
+
+/* ── FULLSCREEN RED ERROR OVERLAY ── */
+#fullscreen-error-overlay {
+  display:none; position:fixed; inset:0; z-index:99999;
+  background:rgba(153, 27, 27, 0.96); backdrop-filter:blur(8px);
+  color:#ffffff; align-items:center; justify-content:center; padding:24px;
+}
+.fs-card {
+  background:#ffffff; color:#0f172a; max-width:680px; width:100%;
+  border-radius:12px; padding:24px 28px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);
+  border:2px solid #ef4444; position:relative; animation:fs-slide .2s ease-out;
+}
+@keyframes fs-slide{from{transform:scale(0.95);opacity:0}to{transform:scale(1);opacity:1}}
+.fs-head { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+.fs-beacon { width:16px; height:16px; border-radius:50%; background:#dc2626; animation:pulse-beacon 1s infinite; }
+.fs-title { font-size:16px; font-weight:800; color:#991b1b; letter-spacing:0.3px; }
+.fs-meta { font-size:13px; color:#475569; margin-bottom:12px; font-family:'JetBrains Mono',monospace; }
+.fs-snippet { background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:10px 14px; font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#991b1b; margin-bottom:16px; white-space:pre-wrap; }
+.fs-btn-row { display:flex; gap:10px; align-items:center; justify-content:flex-end; }
+.fs-alarm-tag { margin-right:auto; font-weight:700; color:#dc2626; font-size:12.5px; display:flex; align-items:center; gap:6px; }
+
+/* ── BUZZER CONTROLS ── */
+.buzzer-badge { background:#dc2626; color:#ffffff; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:700; display:inline-flex; align-items:center; gap:6px; animation:pulse-beacon 1s infinite; }
+.vol-control { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--text2); font-weight:500; }
+.vol-slider { width:70px; cursor:pointer; accent-color:var(--blue); }
+.line-error { background:#fee2e2 !important; color:#991b1b !important; font-weight:700; position:relative; }
+.line-error::after { content:"●"; position:absolute; right:4px; color:#dc2626; font-size:10px; }
+.bracket-match { background:#fef08a !important; outline:1px solid #ca8a04; border-radius:2px; }
+
 </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
+  <!-- ── FULL-SCREEN RED ERROR SIGNAL OVERLAY ── -->
+  <div id="fullscreen-error-overlay">
+    <div class="fs-card">
+      <div class="fs-head">
+        <div class="fs-beacon"></div>
+        <div class="fs-title" id="fs-err-title">DEV-C++ COMPILER ERROR DETECTED</div>
+        <span class="badge badge-critical" id="fs-err-badge">COMPILER ERROR</span>
+      </div>
+      <div class="fs-meta" id="fs-err-meta">Target: main.cpp:5:18</div>
+      <div class="fs-snippet" id="fs-err-snippet">error: expected ';' before 'cout'</div>
+      <div class="fs-btn-row">
+        <div class="fs-alarm-tag" id="fs-alarm-status">
+          <span class="danger-beacon" style="width:8px;height:8px"></span>
+          <span id="fs-buzzer-countdown">Alarm: 30s remaining</span>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="stopBuzzer()">Stop Buzzer</button>
+        <button class="btn btn-green btn-sm" onclick="viewFixFromOverlay()">View Fix</button>
+        <button class="btn btn-gray btn-sm" onclick="dismissFullscreenError()">Dismiss</button>
+      </div>
+    </div>
+  </div>
 <div id="app">
   <!-- HEADER -->
     <!-- HEADER -->
@@ -198,6 +249,10 @@ select.sample-select optgroup{font-weight:700;color:#1e3a8a}
         <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
         <span class="label">Optimize</span>
       </div>
+            <div class="sb-item" onclick="switchTab('analytics')" id="sb-analytics" title="Analytics Graphs">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span class="label">Graphs</span>
+      </div>
       <div class="sb-item" onclick="switchTab('report')" id="sb-report" title="Audit Report">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         <span class="label">Report</span>
@@ -242,6 +297,13 @@ select.sample-select optgroup{font-weight:700;color:#1e3a8a}
           </select>
           <select class="sample-select" id="sample-select" onchange="loadSample(this.value)">
             <option value="">Load Sample / Test Case...</option>
+            <optgroup label="Dev-C++ Compiler Benchmark Cases (5 Core Tests)">
+              <option value="test_case_1_missing_semicolon.cpp">Test 1: Missing Semicolon (expected ';')</option>
+              <option value="test_case_2_unmatched_brace.cpp">Test 2: Unmatched Brace (expected '}')</option>
+              <option value="test_case_3_undeclared_variable.cpp">Test 3: Undeclared Variable ('result')</option>
+              <option value="test_case_4_misspelled_keyword.cpp">Test 4: Misspelled Keyword ('itn', 'prinft')</option>
+              <option value="test_case_5_missing_include.cpp">Test 5: Missing #include (<iostream>)</option>
+            </optgroup>
             
             <optgroup label="Mandatory Test Cases (Interview Benchmarks)">
               <option value="missing_semicolon.cpp">Case 1: Missing Semicolon (Line 5)</option>
@@ -295,11 +357,18 @@ select.sample-select optgroup{font-weight:700;color:#1e3a8a}
             </optgroup>
           </select>
 
-          <button class="btn" onclick="runFull()">Run Analysis</button>
+                    <button class="btn" id="btn-check-code" onclick="runFull()">Check Code</button>
           <button class="btn btn-green" onclick="quickRepair()">Analyze &amp; Repair</button>
-          <button class="btn btn-gray" onclick="formatCode()">Format Code</button>
-          <button class="btn btn-gray" onclick="clearEditor()">Clear Editor</button>
-          <button class="btn btn-gray btn-sm" id="btn-sound-toggle" onclick="toggleMuteSound()">Mute Alert Sound</button>
+          <button class="btn btn-danger btn-sm" id="btn-stop-buzzer" style="display:none;" onclick="stopBuzzer()">Stop Buzzer</button>
+          <span id="buzzer-countdown-badge" class="buzzer-badge" style="display:none;">Buzzer: 30s</span>
+          <div class="vol-control">
+            <span>Vol:</span>
+            <input type="range" id="buzzer-vol-slider" class="vol-slider" min="0" max="1" step="0.05" value="0.5" oninput="setBuzzerVolume(this.value)" title="Buzzer Volume"/>
+          </div>
+          <button class="btn btn-gray btn-sm" id="btn-sound-toggle" onclick="toggleMuteSound()">Mute</button>
+          <button class="btn btn-gray btn-sm" onclick="testBuzzerSound()">Test Sound</button>
+          <button class="btn btn-gray btn-sm" onclick="formatCode()">Format</button>
+          <button class="btn btn-gray btn-sm" onclick="clearEditor()">Clear</button>
         </div>
 
         <div id="editor-wrap">
@@ -521,27 +590,84 @@ select.sample-select optgroup{font-weight:700;color:#1e3a8a}
 
       <!-- ── REPAIR ── -->
       <div class="section" id="section-repair">
-        <div>
-          <div class="page-title">Agentic AI Code Repair</div>
-          <div class="page-subtitle">Multi-turn repair loop with verification at each step</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div class="page-title">Autonomous Code Repair &amp; Self-Healing</div>
+            <div class="page-subtitle">Iterative 10-pass AST verification loop with side-by-side corrected code</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-green btn-sm" onclick="confirmApplyRepair()">Apply Corrected Code to Editor</button>
+            <button class="btn btn-gray btn-sm" onclick="copyCorrectedCode()">Copy Corrected Code</button>
+          </div>
         </div>
+
+        <div id="repair-verification-banner" style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:12px;">
+          <span id="repair-banner-icon" style="font-size:18px;">✅</span>
+          <div>
+            <div id="repair-banner-title" style="font-weight:700;font-size:13px;color:#166534;">REPAIR VERIFICATION PASSED — 0 Errors Remaining</div>
+            <div id="repair-banner-sub" style="font-size:12px;color:#475569;">Iterative re-checker verified zero AST error nodes after passes.</div>
+          </div>
+        </div>
+
         <div id="repair-status-row" class="row" style="flex-wrap:nowrap">
-          <div class="metric-card" style="flex:none;min-width:120px"><div class="metric-val" id="r-turns">—</div><div class="metric-label">Turns Taken</div></div>
-          <div class="metric-card" style="flex:none;min-width:120px"><div class="metric-val" id="r-status">—</div><div class="metric-label">Status</div></div>
+          <div class="metric-card" style="flex:none;min-width:130px"><div class="metric-val" id="r-turns">—</div><div class="metric-label">Passes (Max 10)</div></div>
+          <div class="metric-card" style="flex:none;min-width:150px"><div class="metric-val" id="r-status">—</div><div class="metric-label">Compiler Status</div></div>
+          <div class="metric-card" style="flex:1"><div class="metric-val" id="r-changes-count" style="font-size:16px;color:#16a34a;margin-top:4px;">—</div><div class="metric-label">Modifications Applied</div></div>
         </div>
+
         <div class="repair-tabs">
-          <div class="rtab active" onclick="switchRepairTab('repaired',this)">Repaired Code</div>
-          <div class="rtab" onclick="switchRepairTab('diff',this)">Diff View</div>
-          <div class="rtab" onclick="switchRepairTab('trail',this)">Agent Reasoning Trail</div>
+          <div class="rtab active" onclick="switchRepairTab('sidebyside',this)">Side-by-Side Comparison</div>
+          <div class="rtab" onclick="switchRepairTab('repaired',this)">Corrected Code (Clean)</div>
+          <div class="rtab" onclick="switchRepairTab('diff',this)">Unified Diff</div>
+          <div class="rtab" onclick="switchRepairTab('trail',this)">Agent Reasoning Trail (Pass 1-10)</div>
         </div>
-        <div id="rt-repaired" style="flex:1;overflow:auto">
-          <pre class="code-block" id="healed-code-pre" style="max-height:500px;overflow:auto">—</pre>
+
+        <!-- Side-by-side view (Phase 1) -->
+        <div id="rt-sidebyside" style="flex:1;overflow:auto">
+          <div class="diff-container" id="repair-sidebyside-container" style="max-height:520px;border:1px solid var(--border-dark);border-radius:8px;"></div>
+        </div>
+
+        <div id="rt-repaired" style="display:none;flex:1;overflow:auto">
+          <pre class="code-block" id="healed-code-pre" style="max-height:500px;overflow:auto;background:#ffffff;color:#000000;font-size:13px;border:1px solid var(--border-dark);">—</pre>
         </div>
         <div id="rt-diff" style="display:none;flex:1;overflow:auto">
           <div class="diff-container" id="diff-container" style="max-height:500px"></div>
         </div>
         <div id="rt-trail" style="display:none;overflow-y:auto;max-height:500px">
           <div id="thought-trail"></div>
+        </div>
+      </div>
+
+      
+      <!-- ── ANALYTICS GRAPHS ── -->
+      <div class="section" id="section-analytics">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div class="page-title">Syntax Diagnostics &amp; Classifier Analytics</div>
+            <div class="page-subtitle">Live charts updated after every check — error distributions, runs, and model confidence</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <a href="/performance" target="_blank" class="btn btn-gray btn-sm">Full Performance Dashboard ↗</a>
+            <button class="btn btn-gray btn-sm" onclick="fetchAndRenderAnalytics()">Refresh Graphs</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="card" style="flex:1;min-width:320px;height:320px;position:relative;">
+            <div class="card-title">Error-Type Distribution (Bar / Pie)</div>
+            <canvas id="chart-error-dist" style="max-height:260px;"></canvas>
+          </div>
+          <div class="card" style="flex:1;min-width:320px;height:320px;position:relative;">
+            <div class="card-title">Errors Detected Per Run History</div>
+            <canvas id="chart-errors-run" style="max-height:260px;"></canvas>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <div class="card" style="flex:1;min-width:320px;height:300px;position:relative;">
+            <div class="card-title">Classifier Confidence &amp; Detection Latency</div>
+            <canvas id="chart-confidence-time" style="max-height:240px;"></canvas>
+          </div>
         </div>
       </div>
 
@@ -1020,6 +1146,7 @@ function downloadCode() {
 
 // ── MAIN: Run Full Analysis ────────────────────────────────────────────────
 async function runFull() {
+  getBuzzerAudioContext();
   const code = document.getElementById('code-editor').value.trim();
   if (!code) { log('ERR','No code entered','err'); return; }
   const startTime = performance.now();
