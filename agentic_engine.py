@@ -846,15 +846,316 @@ class AgenticRepairEngine:
 
 
 # ============================================================================
-# 4. UNIFIED PIPELINE RUNNER
+# 4. CRITICAL CODE RISK DETECTION AGENT & INTELLIGENT FILE NAMING
+# ============================================================================
+
+class CriticalCodeRiskDetector:
+    """
+    Advanced AI Agent: Critical Code Risk Detection Agent
+    Continuously analyzes C++ code for dangerous programming patterns:
+    - Infinite loops (CWE-835)
+    - Excessive nested loops (O(n^3)+ cubic complexity)
+    - Uncontrolled recursion / missing base case (Stack Overflow)
+    - Potential memory leaks / unreleased heap (CWE-401)
+    - Unsafe array access / out of bounds
+    - Uninitialized variable usage (CWE-457)
+    - Loop-invariant repeated computation
+    - Buffer overflows & format string vulnerabilities
+    """
+
+    @classmethod
+    def analyze(cls, code_str):
+        lines = code_str.splitlines()
+        risks = []
+        clean_lines = []
+        for l in lines:
+            clean = re.sub(r'//.*', '', l)
+            clean_lines.append(clean)
+        clean_code = "\n".join(clean_lines)
+
+        # ── 1. Infinite Loops ──────────────────────────────────────────────
+        while_matches = list(re.finditer(r'\bwhile\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*(<|<=|>|>=|!=|==)\s*([^)]+)\)\s*\{([^}]*)\}', clean_code, re.DOTALL))
+        for m in while_matches:
+            var_name = m.group(1).strip()
+            body = m.group(4)
+            mod_re = re.compile(rf'(\b{var_name}\s*(\+\+|--|\+=|-=|\*=|/=|%=|=)|(\+\+|--)\s*{var_name}\b|cin\s*>>\s*{var_name}\b)')
+            has_mod = bool(mod_re.search(body))
+            has_break = bool(re.search(r'\b(break|return|exit)\b', body))
+            if not has_mod and not has_break:
+                line_no = clean_code[:m.start()].count('\n') + 1
+                cond_str = f"{var_name} {m.group(2)} {m.group(3).strip()}"
+                risks.append({
+                    "id": "RISK-INF-LOOP",
+                    "type": "INFINITE_LOOP",
+                    "severity": "CRITICAL",
+                    "title": "Potential Infinite Loop Detected",
+                    "description": f"Loop condition '{cond_str}' depends on variable '{var_name}', which is never updated within the loop body.",
+                    "line": line_no,
+                    "impact": "Unbounded execution; process will hang in 100% CPU core starvation and never terminate.",
+                    "solution": f"Increment or update '{var_name}' (e.g. '{var_name}++;') inside the loop body, or specify an explicit break condition.",
+                    "snippet": lines[line_no - 1].strip() if line_no <= len(lines) else ""
+                })
+
+        while_true_matches = list(re.finditer(r'\bwhile\s*\(\s*(true|1)\s*\)\s*\{([^}]*)\}', clean_code, re.DOTALL))
+        for m in while_true_matches:
+            body = m.group(2)
+            if not re.search(r'\b(break|return|exit)\b', body):
+                line_no = clean_code[:m.start()].count('\n') + 1
+                risks.append({
+                    "id": "RISK-INF-LOOP-CONST",
+                    "type": "INFINITE_LOOP",
+                    "severity": "CRITICAL",
+                    "title": "Unbounded Constant Infinite Loop (CWE-835)",
+                    "description": "Loop condition is perpetually true with no internal break or return statements.",
+                    "line": line_no,
+                    "impact": "Thread lockup causing CPU exhaustion and Denial of Service (DoS).",
+                    "solution": "Add an explicit exit/break condition based on execution state or iteration count.",
+                    "snippet": lines[line_no - 1].strip() if line_no <= len(lines) else ""
+                })
+
+        # ── 2. Excessive Nested Loops (O(n^3)+ Time Complexity) ────────────
+        nest_matches = list(re.finditer(r'(for|while)\s*\([^)]*\)\s*\{[\s\S]*?(for|while)\s*\([^)]*\)\s*\{[\s\S]*?(for|while)\s*\([^)]*\)\s*\{', clean_code))
+        for m in nest_matches:
+            line_no = clean_code[:m.start()].count('\n') + 1
+            risks.append({
+                "id": "RISK-EXCESSIVE-NESTING",
+                "type": "HIGH_COMPLEXITY",
+                "severity": "HIGH",
+                "title": "Excessive Loop Nesting — O(n³) Cubic Time Complexity",
+                "description": "Three or more nested loops detected with high iteration bounds, resulting in massive computational overhead (~1,000,000,000 operations).",
+                "line": line_no,
+                "impact": "Severe application latency, UI thread blocking, and execution timeout.",
+                "solution": "Refactor nested loops: flatten dimensions, use hash maps for O(1) lookups, or apply dynamic programming.",
+                "snippet": lines[line_no - 1].strip() if line_no <= len(lines) else ""
+            })
+
+        # ── 3. Array Out of Bounds ─────────────────────────────────────────
+        decl_re = re.compile(r'\b(?:int|float|double|char|long|short|bool)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\[\s*(\d+)\s*\]')
+        arrays = {}
+        for m in decl_re.finditer(clean_code):
+            arr_name = m.group(1)
+            arr_size = int(m.group(2))
+            arrays[arr_name] = (arr_size, clean_code[:m.start()].count('\n') + 1)
+
+        usage_re = re.compile(r'\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\[\s*(\d+)\s*\]')
+        for m in usage_re.finditer(clean_code):
+            arr_name = m.group(1)
+            idx = int(m.group(2))
+            if arr_name in arrays:
+                arr_size, decl_line = arrays[arr_name]
+                line_no = clean_code[:m.start()].count('\n') + 1
+                if line_no != decl_line and idx >= arr_size:
+                    risks.append({
+                        "id": "RISK-OUT-OF-BOUNDS",
+                        "type": "OUT_OF_BOUNDS",
+                        "severity": "CRITICAL",
+                        "title": "Static Array Out-of-Bounds Access",
+                        "description": f"Index '{idx}' exceeds declared bounds of array '{arr_name}[{arr_size}]' (valid indices: 0 to {arr_size - 1}).",
+                        "line": line_no,
+                        "impact": "Reading or writing out-of-bounds memory causes undefined behavior, stack corruption, or SIGSEGV segmentation fault.",
+                        "solution": f"Ensure index is within [0, {arr_size - 1}], or use bounds-checked 'std::array::at()' or 'std::vector'.",
+                        "snippet": lines[line_no - 1].strip() if line_no <= len(lines) else ""
+                    })
+
+        # ── 4. Uncontrolled Recursion (Missing Base Case) ───────────────────
+        func_re = re.compile(r'\b([a-zA-Z_][a-zA-Z0-9_]*)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)\s*\{([^}]*)\}', re.DOTALL)
+        for m in func_re.finditer(clean_code):
+            ret_type = m.group(1)
+            func_name = m.group(2)
+            params = m.group(3)
+            body = m.group(4)
+            if func_name in ("main", "if", "for", "while", "switch"):
+                continue
+            call_re = re.compile(rf'\b{func_name}\s*\(')
+            if call_re.search(body):
+                if not re.search(r'\bif\s*\(', body):
+                    line_no = clean_code[:m.start()].count('\n') + 1
+                    risks.append({
+                        "id": "RISK-UNCONTROLLED-RECURSION",
+                        "type": "UNCONTROLLED_RECURSION",
+                        "severity": "CRITICAL",
+                        "title": "Uncontrolled Recursion (Missing Base Case)",
+                        "description": f"Function '{func_name}' calls itself recursively without any conditional termination base case.",
+                        "line": line_no,
+                        "impact": "Guaranteed call stack exhaustion causing runtime Stack Overflow and immediate process crash.",
+                        "solution": f"Add a terminal base condition (e.g. 'if (n <= 1) return 1;') before the recursive step.",
+                        "snippet": lines[line_no - 1].strip() if line_no <= len(lines) else ""
+                    })
+
+        # ── 5. Memory Management Issue (Unreleased Heap Allocation) ────────
+        new_matches = list(re.finditer(r'\b([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*new\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(\[[^\]]*\])?', clean_code))
+        for m in new_matches:
+            ptr_name = m.group(1)
+            is_array = bool(m.group(3))
+            del_pattern = rf'\bdelete\s*\[\s*\]\s*{ptr_name}\b' if is_array else rf'\bdelete\s+{ptr_name}\b'
+            if not re.search(del_pattern, clean_code):
+                line_no = clean_code[:m.start()].count('\n') + 1
+                risks.append({
+                    "id": "RISK-MEMORY-LEAK",
+                    "type": "MEMORY_LEAK",
+                    "severity": "HIGH",
+                    "title": "Unreleased Dynamic Memory (CWE-401)",
+                    "description": f"Pointer '{ptr_name}' allocated heap memory via 'new{'[]' if is_array else ''}' that is never released with 'delete{'[]' if is_array else ''}'.",
+                    "line": line_no,
+                    "impact": "Heap memory leakage leading to gradual memory bloat and potential Out-Of-Memory (OOM) abort.",
+                    "solution": f"Call 'delete{'[]' if is_array else ''} {ptr_name};' before scope exit, or adopt RAII smart pointers ('std::unique_ptr').",
+                    "snippet": lines[line_no - 1].strip() if line_no <= len(lines) else ""
+                })
+
+        # ── 6. Uninitialized Variable Usage (CWE-457) ──────────────────────
+        uninit_re = re.compile(r'^\s*(int|float|double|char|long|short|bool)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*;', re.MULTILINE)
+        for m in uninit_re.finditer(clean_code):
+            var_name = m.group(2)
+            decl_pos = m.end()
+            line_no = clean_code[:m.start()].count('\n') + 1
+            code_after = clean_code[decl_pos:]
+            read_match = re.search(rf'\bcout\s*<<\s*{var_name}\b|\b([a-zA-Z_][a-zA-Z0-9_]*\s*=\s*[^;]*\b{var_name}\b)', code_after)
+            assign_match = re.search(rf'\b{var_name}\s*=[^=]', code_after)
+            if read_match and (not assign_match or read_match.start() < assign_match.start()):
+                read_line = clean_code[:decl_pos + read_match.start()].count('\n') + 1
+                risks.append({
+                    "id": "RISK-UNINITIALIZED-VAR",
+                    "type": "UNINITIALIZED_VARIABLE",
+                    "severity": "HIGH",
+                    "title": "Use of Uninitialized Variable (CWE-457)",
+                    "description": f"Variable '{var_name}' is declared without an initializer and read at line {read_line} before being assigned.",
+                    "line": read_line,
+                    "impact": "Indeterminate garbage data read from stack; causes unpredictable calculation errors and undefined behavior.",
+                    "solution": f"Explicitly initialize the variable at declaration: 'int {var_name} = 0;'.",
+                    "snippet": lines[read_line - 1].strip() if read_line <= len(lines) else ""
+                })
+
+        # ── 7. Loop-Invariant Repeated Computation ─────────────────────────
+        for_loop_re = re.compile(r'\bfor\s*\([^)]*\)\s*\{([^}]*)\}', re.DOTALL)
+        for m in for_loop_re.finditer(clean_code):
+            body = m.group(1)
+            calc_match = re.search(r'\b([a-zA-Z_][a-zA-Z0-9_]*)\s*(\*|\+|\-|\/)\s*([a-zA-Z_][a-zA-Z0-9_]*)\b', body)
+            if calc_match:
+                op1 = calc_match.group(1)
+                op = calc_match.group(2)
+                op2 = calc_match.group(3)
+                if op1 not in ("i", "j", "k", "idx") and op2 not in ("i", "j", "k", "idx"):
+                    expr_str = f"{op1} {op} {op2}"
+                    line_no = clean_code[:m.start() + body.find(calc_match.group(0))].count('\n') + 1
+                    risks.append({
+                        "id": "RISK-INVARIANT-COMPUTATION",
+                        "type": "REPEATED_COMPUTATION",
+                        "severity": "WARNING",
+                        "title": "Loop-Invariant Repeated Computation",
+                        "description": f"Expression '{expr_str}' is recalculated on every loop iteration, despite operands remaining unchanged.",
+                        "line": line_no,
+                        "impact": "Wasted CPU cycles, redundant instruction throughput, and increased energy consumption.",
+                        "solution": f"Hoist the computation outside the loop into a variable (e.g. 'int precomputed = {expr_str};').",
+                        "snippet": lines[line_no - 1].strip() if line_no <= len(lines) else ""
+                    })
+
+        # ── 8. Buffer Overflow Insecure C Functions ────────────────────────
+        c_insecure = [
+            (r'\bgets\s*\(([^)]*)\)', "gets()", "CRITICAL", "CWE-120 / CWE-242 Insecure gets() Buffer Overflow",
+             "gets() performs no input bounds checking; an attacker can overwrite the stack frame for arbitrary code execution."),
+            (r'\bstrcpy\s*\(([^)]*)\)', "strcpy()", "CRITICAL", "CWE-121 Stack Buffer Overflow via strcpy()",
+             "strcpy() lacks destination buffer length validation; unbounded source string overwrites adjacent stack variables.")
+        ]
+        for pattern, func_name, sev, title, exploit in c_insecure:
+            for m in re.finditer(pattern, clean_code):
+                line_no = clean_code[:m.start()].count('\n') + 1
+                risks.append({
+                    "id": "RISK-BUFFER-OVERFLOW",
+                    "type": "BUFFER_OVERFLOW",
+                    "severity": sev,
+                    "title": title,
+                    "description": f"Dangerous legacy function '{func_name}' detected at line {line_no}.",
+                    "line": line_no,
+                    "impact": exploit,
+                    "solution": "Replace with bounds-checked alternatives like 'std::string', 'strncpy()', or 'fgets()'.",
+                    "snippet": lines[line_no - 1].strip() if line_no <= len(lines) else ""
+                })
+
+        severity_order = ["CRITICAL", "HIGH", "WARNING", "INFO"]
+        highest_severity = "NONE"
+        for s in severity_order:
+            if any(r["severity"] == s for r in risks):
+                highest_severity = s
+                break
+
+        return {
+            "has_critical_risks": len(risks) > 0,
+            "highest_severity": highest_severity,
+            "total_risks": len(risks),
+            "risks": risks
+        }
+
+
+def generate_meaningful_filename(code, risks=None, syntax_errors=None):
+    """
+    Intelligent File Naming System:
+    Generates meaningful, descriptive C++ filenames based on code structure,
+    algorithmic purpose, or detected issues. Avoids generic 'test.cpp' names.
+    """
+    if risks:
+        for r in risks:
+            rtype = r.get("type", "")
+            if rtype == "INFINITE_LOOP":
+                return "infinite_loop.cpp"
+            elif rtype == "OUT_OF_BOUNDS":
+                return "array_out_of_bounds.cpp"
+            elif rtype == "UNCONTROLLED_RECURSION":
+                return "recursive_function.cpp"
+            elif rtype == "HIGH_COMPLEXITY":
+                return "nested_loop_complexity.cpp"
+            elif rtype == "MEMORY_LEAK":
+                return "memory_leak_example.cpp"
+            elif rtype == "UNINITIALIZED_VARIABLE":
+                return "uninitialized_variable.cpp"
+            elif rtype == "REPEATED_COMPUTATION":
+                return "repeated_computation.cpp"
+            elif rtype == "BUFFER_OVERFLOW":
+                return "buffer_overflow.cpp"
+
+    if syntax_errors:
+        for e in syntax_errors:
+            etype = e.get("type", "")
+            if etype == "MISSING_SEMICOLON":
+                return "missing_semicolon.cpp"
+            elif etype in ("UNMATCHED_BRACE", "UNMATCHED_PARANTHESES"):
+                return "unmatched_bracket.cpp"
+            elif etype == "INVALID_ARRAY_DECL":
+                return "invalid_array_decl.cpp"
+
+    if "cout << result" in code or ("result" in code and "int result" not in code):
+        return "undefined_variable.cpp"
+
+    code_lower = code.lower()
+    if "bubblesort" in code_lower or "sort(" in code_lower:
+        return "optimized_sorting.cpp"
+    if "factorial" in code_lower:
+        return "recursive_function.cpp"
+    if "sum" in code_lower and "arr" in code_lower:
+        return "correct_and_optimized.cpp"
+    if "fibonacci" in code_lower:
+        return "fibonacci_benchmark.cpp"
+    if "tax" in code_lower:
+        return "tax_calculation.cpp"
+
+    m = re.search(r'\b(?:int|void|float|double|bool|string)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(', code)
+    if m and m.group(1) != "main":
+        return f"{m.group(1).lower()}.cpp"
+
+    return "main_program.cpp"
+
+
+# ============================================================================
+# 5. UNIFIED PIPELINE RUNNER
 # ============================================================================
 
 def run_agentic_pipeline(filepath_or_code, ml_error_type=None, confidence=None):
     """
     Executes the full pipeline:
-    1. Agentic Self-Healing
-    2. Green Computing Profiling
-    3. Cybersecurity Threat Audit
+    1. Critical Code Risk Detection Agent
+    2. Agentic Self-Healing
+    3. Green Computing Profiling
+    4. Cybersecurity Threat Audit
+    5. Intelligent File Naming
     """
     if os.path.exists(filepath_or_code):
         with open(filepath_or_code, "r", encoding="utf-8", errors="ignore") as f:
@@ -864,28 +1165,42 @@ def run_agentic_pipeline(filepath_or_code, ml_error_type=None, confidence=None):
         code = filepath_or_code
         filename = "submitted_code.cpp"
 
+    # 1. Critical Code Risk Detection Agent
+    risk_analysis = CriticalCodeRiskDetector.analyze(code)
+
     # Autonomous ML classification using trained Random Forest model (model.pkl)
     if ml_error_type is None:
         ml_error_type, confidence = classify_syntax_error(code)
 
-    # 1. Run Agentic Repair
+    # 2. Run Agentic Repair
     agent = AgenticRepairEngine()
     repair_result = agent.heal_code(code, ml_error_type=ml_error_type, confidence=confidence)
 
-    # 2. Run Green Computing Profiling on healed code
+    # 3. Run Green Computing Profiling on healed code
     effective_code = repair_result["healed_code"] if repair_result["success"] else code
     green_profile = GreenComputingProfiler.profile_code(effective_code.splitlines(keepends=True))
 
-    # 3. Run Cybersecurity Threat Audit
+    # 4. Run Cybersecurity Threat Audit
     security_audit = CyberThreatShield.audit_code(effective_code.splitlines(keepends=True))
+
+    # 5. Intelligent File Naming
+    meaningful_filename = generate_meaningful_filename(
+        code,
+        risks=risk_analysis.get("risks"),
+        syntax_errors=None
+    )
+    if filename in ("test1.cpp", "test.cpp", "submitted_code.cpp", "custom_input.cpp"):
+        filename = meaningful_filename
 
     return {
         "filename": filename,
+        "meaningful_filename": meaningful_filename,
         "ml_error_type": ml_error_type,
         "confidence": confidence,
         "repair": repair_result,
         "green_computing": green_profile,
-        "security_shield": security_audit
+        "security_shield": security_audit,
+        "critical_risks": risk_analysis
     }
 
 

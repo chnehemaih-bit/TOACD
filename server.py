@@ -286,7 +286,9 @@ class TerminalUIHandler(http.server.SimpleHTTPRequestHandler):
 
 
     def do_POST(self):
-        if self.path == '/run':
+        print(f"[DEBUG POST] received path: '{self.path}'")
+        clean_path = self.path.split('?', 1)[0].split('#', 1)[0].rstrip('/')
+        if clean_path == '/run' or self.path == '/run':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             
@@ -410,7 +412,7 @@ class TerminalUIHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_response(400)
                 self.end_headers()
                 self.wfile.write(b"Invalid JSON")
-        elif self.path == '/agentic-run':
+        elif clean_path == '/agentic-run':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             try:
@@ -425,7 +427,9 @@ class TerminalUIHandler(http.server.SimpleHTTPRequestHandler):
 
                 if code and code.strip():
                     target = code.strip()
-                    filename = filename if filename and filename.endswith('.cpp') else 'custom_input.cpp'
+                    from agentic_engine import generate_meaningful_filename
+                    detected_name = generate_meaningful_filename(target)
+                    filename = detected_name if (not filename or filename in ('custom_input.cpp', 'test1.cpp', 'test.cpp')) else filename
                     filepath = os.path.join('.', filename)
                     with open(filepath, 'w', encoding='utf-8') as f:
                         f.write(target)
@@ -448,7 +452,7 @@ class TerminalUIHandler(http.server.SimpleHTTPRequestHandler):
             except Exception as e:
                 self._send_json({"error": str(e)})
 
-        elif self.path == '/analyze':
+        elif clean_path == '/analyze':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             try:
@@ -535,7 +539,14 @@ class TerminalUIHandler(http.server.SimpleHTTPRequestHandler):
                     "Expr → Expr BinOp Expr | UnaryOp Expr | Identifier | Literal | FuncCall",
                 ]
 
+                # ── 4. Critical Code Risk Detection Agent ─────────────────────
+                from agentic_engine import CriticalCodeRiskDetector, generate_meaningful_filename
+                critical_risks = CriticalCodeRiskDetector.analyze(code)
+                meaningful_filename = generate_meaningful_filename(code, risks=critical_risks.get("risks"), syntax_errors=syntax_errors)
+
                 self._send_json({
+                    "filename":            meaningful_filename,
+                    "meaningful_filename": meaningful_filename,
                     "tokens":              tokens,
                     "token_summary":       counts,
                     "syntax_errors":       syntax_errors,
@@ -545,11 +556,25 @@ class TerminalUIHandler(http.server.SimpleHTTPRequestHandler):
                     "symbol_table":        symbol_table,
                     "scope_summary":       scope_summary,
                     "grammar_productions": grammar_productions,
+                    "critical_risks":      critical_risks,
                 })
             except Exception as e:
                 self._send_json({"error": str(e)})
 
-        elif self.path == '/optimize':
+        elif clean_path == '/critical-risks':
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                post_data = self.rfile.read(content_length)
+                from agentic_engine import CriticalCodeRiskDetector, generate_meaningful_filename
+                data = json.loads(post_data.decode('utf-8-sig', errors='replace'))
+                code = data.get('code', '')
+                res = CriticalCodeRiskDetector.analyze(code)
+                res["meaningful_filename"] = generate_meaningful_filename(code, risks=res.get("risks"))
+                self._send_json(res)
+            except Exception as e:
+                self._send_json({"error": str(e)})
+
+        elif clean_path == '/optimize':
             try:
                 content_length = int(self.headers.get('Content-Length', 0))
                 post_data = self.rfile.read(content_length)

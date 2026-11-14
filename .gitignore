@@ -40,5 +40,11 @@ CD_Project/
 performance_analysis/
 build_70_dataset.py
 update_theme_and_samples.py
+apply_full_upgrade.py
+create_10_cases.py
+eval_10_cases.py
+test_endpoint.py
+test_risk_detector.py
+verify_all_10_cases.py
 /tc*.cpp
 !test_cases_70/*.cpp

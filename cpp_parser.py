@@ -475,36 +475,46 @@ class Parser:
                     arr.add(ASTNode("ErrorNode", value="INVALID_ARRAY_DECL", line=name_tok["line"]))
                 node.add(arr)
 
-            elif self.cur.is_type("OPERATOR") and self.cur.peek()["token_value"] == "=":
+            if self.cur.is_type("OPERATOR") and self.cur.peek()["token_value"] == "=":
                 op = self.cur.consume()
                 asgn = ASTNode("AssignExprNode", value="=", line=op["line"])
-                # Track whether the last consumed RHS token was a "value" (identifier/literal)
-                # so we can detect two consecutive values with no operator = missing semicolon.
-                last_was_value = False
-                while not self.cur.done() and not self.cur.is_type("SEMICOLON", "CLOSE_BRACE"):
-                    cur_tok = self.cur.peek()
-                    if cur_tok is None:
-                        break
-                    cur_type  = cur_tok["token_type"]
-                    cur_val   = cur_tok["token_value"]
-                    # Break on explicit keyword/type boundaries
-                    if cur_val in TYPE_KW or cur_val in ("return", "cout", "cin", "if", "for", "while", "else", "switch"):
-                        self.err(f"Missing ';' — MISSING_SEMICOLON at line {op['line']}")
-                        node.add(ASTNode("ErrorNode", value="MISSING_SEMICOLON", line=op['line']))
-                        break
-                    cur_is_value = cur_type in ("IDENTIFIER", "INTEGER", "FLOAT", "STRING", "CHAR")
-                    # Two consecutive value tokens with no operator between them → new statement
-                    if last_was_value and cur_is_value:
-                        self.err(f"Missing ';' — MISSING_SEMICOLON at line {op['line']}")
-                        node.add(ASTNode("ErrorNode", value="MISSING_SEMICOLON", line=op['line']))
-                        break
-                    r = self.cur.consume()
-                    asgn.add(ASTNode("ExprNode", value=r["token_value"], line=r["line"]))
-                    # Operators reset the "last was value" flag; values set it
-                    if cur_is_value:
-                        last_was_value = True
-                    elif cur_type != "WHITESPACE":
-                        last_was_value = False
+                if self.cur.is_type("OPEN_BRACE"):
+                    # Array or aggregate initializer list {1, 2, 3}
+                    init_node = ASTNode("InitListNode", value="{...}", line=op["line"])
+                    self.cur.consume()
+                    while not self.cur.done() and not self.cur.is_type("CLOSE_BRACE", "SEMICOLON"):
+                        init_node.add(ASTNode("ExprNode", value=self.cur.consume()["token_value"], line=op["line"]))
+                    if self.cur.is_type("CLOSE_BRACE"):
+                        self.cur.consume()
+                    asgn.add(init_node)
+                else:
+                    # Track whether the last consumed RHS token was a "value" (identifier/literal)
+                    # so we can detect two consecutive values with no operator = missing semicolon.
+                    last_was_value = False
+                    while not self.cur.done() and not self.cur.is_type("SEMICOLON", "CLOSE_BRACE"):
+                        cur_tok = self.cur.peek()
+                        if cur_tok is None:
+                            break
+                        cur_type  = cur_tok["token_type"]
+                        cur_val   = cur_tok["token_value"]
+                        # Break on explicit keyword/type boundaries
+                        if cur_val in TYPE_KW or cur_val in ("return", "cout", "cin", "if", "for", "while", "else", "switch"):
+                            self.err(f"Missing ';' — MISSING_SEMICOLON at line {op['line']}")
+                            node.add(ASTNode("ErrorNode", value="MISSING_SEMICOLON", line=op['line']))
+                            break
+                        cur_is_value = cur_type in ("IDENTIFIER", "INTEGER", "FLOAT", "STRING", "CHAR")
+                        # Two consecutive value tokens with no operator between them → new statement
+                        if last_was_value and cur_is_value:
+                            self.err(f"Missing ';' — MISSING_SEMICOLON at line {op['line']}")
+                            node.add(ASTNode("ErrorNode", value="MISSING_SEMICOLON", line=op['line']))
+                            break
+                        r = self.cur.consume()
+                        asgn.add(ASTNode("ExprNode", value=r["token_value"], line=r["line"]))
+                        # Operators reset the "last was value" flag; values set it
+                        if cur_is_value:
+                            last_was_value = True
+                        elif cur_type != "WHITESPACE":
+                            last_was_value = False
                 node.add(asgn)
 
         elif self.cur.is_type("INTEGER", "STRING"):
