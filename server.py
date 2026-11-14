@@ -11,6 +11,7 @@ import re
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
+os.chdir(SCRIPT_DIR)
 
 import agentic_engine
 
@@ -235,6 +236,17 @@ def extract_performance_from_output(output, filename, self_heal=False):
 
 
 class TerminalUIHandler(http.server.SimpleHTTPRequestHandler):
+    def translate_path(self, path):
+        path = path.split('?', 1)[0].split('#', 1)[0]
+        rel_path = urllib.parse.unquote(path).lstrip('/')
+        # check if in SCRIPT_DIR or test_cases_70
+        full_path = os.path.join(SCRIPT_DIR, rel_path)
+        if not os.path.exists(full_path):
+            tc_path = os.path.join(SCRIPT_DIR, 'test_cases_70', rel_path)
+            if os.path.exists(tc_path):
+                return tc_path
+        return full_path
+
     def do_GET(self):
         if self.path == '/' or self.path == '/index.html':
             # Always serve fresh — no cache

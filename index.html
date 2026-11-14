@@ -5,213 +5,215 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Agentic AI — C++ Code Analysis Platform v2</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0d1117;--bg2:#161b22;--bg3:#21262d;--card:#1c2128;
-  --border:#30363d;--text:#e6edf3;--text2:#7d8590;
-  --blue:#58a6ff;--green:#3fb950;--red:#f85149;
-  --orange:#d29922;--purple:#bc8cff;--teal:#39d353;--yellow:#e3b341;
+  --bg:#f8fafc;--bg2:#ffffff;--bg3:#f1f5f9;--card:#ffffff;
+  --border:#e2e8f0;--border-dark:#cbd5e1;--text:#0f172a;--text2:#475569;--text3:#94a3b8;
+  --blue:#2563eb;--green:#16a34a;--red:#dc2626;
+  --orange:#d97706;--purple:#7c3aed;--teal:#0d9488;--yellow:#ca8a04;
   --sidebar:56px;
 }
 html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
 /* ── LAYOUT ── */
 #app{display:flex;flex-direction:column;height:100vh}
-header{height:48px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;z-index:10}
-header .logo{font-size:15px;font-weight:700;color:var(--blue);letter-spacing:.5px}
-header .logo span{color:var(--text2);font-weight:400;font-size:12px;margin-left:8px}
-header .status-pill{margin-left:auto;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;background:#1c2128;border:1px solid var(--border);color:var(--text2)}
-header .status-pill.running{border-color:var(--blue);color:var(--blue)}
-header .status-pill.done{border-color:var(--green);color:var(--green)}
-header .status-pill.error{border-color:var(--red);color:var(--red)}
+header{height:50px;background:#ffffff;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:12px;flex-shrink:0;z-index:10;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+header .logo{font-size:15px;font-weight:700;color:#1e40af;letter-spacing:.4px;display:flex;align-items:center;gap:8px}
+header .logo span{color:var(--text2);font-weight:500;font-size:12px;margin-left:4px;background:#f1f5f9;padding:2px 8px;border-radius:12px;border:1px solid var(--border)}
+header .status-pill{margin-left:auto;padding:3px 12px;border-radius:999px;font-size:11px;font-weight:600;background:#f8fafc;border:1px solid var(--border);color:var(--text2)}
+header .status-pill.running{border-color:var(--blue);color:var(--blue);background:#eff6ff}
+header .status-pill.done{border-color:var(--green);color:var(--green);background:#f0fdf4}
+header .status-pill.error{border-color:var(--red);color:var(--red);background:#fef2f2}
 .body{display:flex;flex:1;overflow:hidden}
 /* ── SIDEBAR ── */
-#sidebar{width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px;flex-shrink:0}
-.sb-item{width:44px;height:44px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:2px;transition:background .15s;position:relative}
+#sidebar{width:var(--sidebar);background:#ffffff;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:4px;flex-shrink:0}
+.sb-item{width:44px;height:44px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:2px;transition:all .15s;position:relative}
 .sb-item:hover{background:var(--bg3)}
-.sb-item.active{background:#1f2d3d;border:1px solid #1a4070}
+.sb-item.active{background:#eff6ff;border:1px solid #bfdbfe}
 .sb-item svg{width:18px;height:18px;stroke:var(--text2);fill:none;stroke-width:1.8;transition:stroke .15s}
 .sb-item.active svg{stroke:var(--blue)}
 .sb-item .label{font-size:9px;color:var(--text2);font-weight:500}
-.sb-item.active .label{color:var(--blue)}
+.sb-item.active .label{color:var(--blue);font-weight:700}
 .sb-badge{position:absolute;top:4px;right:4px;background:var(--red);color:#fff;border-radius:999px;font-size:9px;font-weight:700;padding:0 4px;min-width:14px;text-align:center;display:none}
 .sb-badge.show{display:block}
 /* ── MAIN ── */
-#main{flex:1;overflow:hidden;display:flex;flex-direction:column}
+#main{flex:1;overflow:hidden;display:flex;flex-direction:column;background:var(--bg)}
 .section{display:none;height:100%;overflow-y:auto;padding:20px 24px}
 .section.active{display:flex;flex-direction:column;gap:16px}
 /* ── COMMON COMPONENTS ── */
-.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px}
-.card-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px}
-.page-title{font-size:18px;font-weight:700;color:var(--text)}
+.card{background:#ffffff;border:1px solid var(--border);border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.02)}
+.card-title{font-size:12.5px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px}
+.page-title{font-size:19px;font-weight:700;color:var(--text);letter-spacing:-.2px}
 .page-subtitle{font-size:13px;color:var(--text2);margin-top:2px}
 .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
-.badge-red{background:#2d1117;color:var(--red);border:1px solid #5c1a1a}
-.badge-orange{background:#2d1e00;color:var(--orange);border:1px solid #5c3d00}
-.badge-green{background:#0d2114;color:var(--green);border:1px solid #1a5c2e}
-.badge-blue{background:#0d1d30;color:var(--blue);border:1px solid #1a3d60}
-.badge-purple{background:#1d1030;color:var(--purple);border:1px solid #3d2060}
-.badge-gray{background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
-.badge-teal{background:#0d2420;color:var(--teal);border:1px solid #1a5040}
-.badge-yellow{background:#2d2200;color:var(--yellow);border:1px solid #5c4400}
+.badge-red{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5}
+.badge-orange{background:#fef3c7;color:#b45309;border:1px solid #fde68a}
+.badge-green{background:#dcfce7;color:#15803d;border:1px solid #86efac}
+.badge-blue{background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd}
+.badge-purple{background:#f3e8ff;color:#6b21a8;border:1px solid #d8b4fe}
+.badge-gray{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}
+.badge-teal{background:#ccfbf1;color:#0f766e;border:1px solid #5eead4}
+.badge-yellow{background:#fef9c3;color:#854d0e;border:1px solid #fef08a}
 .row{display:flex;gap:12px;flex-wrap:wrap}
-.metric-card{flex:1;min-width:140px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
-.metric-val{font-size:22px;font-weight:700;color:var(--text)}
-.metric-label{font-size:11px;color:var(--text2);margin-top:2px}
-btn,.btn{background:var(--blue);color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:opacity .15s,background .15s}
-.btn:hover{opacity:.85}
-.btn-green{background:#238636}
-.btn-gray{background:var(--bg3);color:var(--text);border:1px solid var(--border)}
-.btn-gray:hover{background:var(--border)}
-.btn-sm{padding:4px 10px;font-size:12px}
+.metric-card{flex:1;min-width:140px;background:#ffffff;border:1px solid var(--border);border-radius:8px;padding:12px 14px;box-shadow:0 1px 2px rgba(0,0,0,0.02)}
+.metric-val{font-size:22px;font-weight:800;color:var(--text)}
+.metric-label{font-size:11px;font-weight:500;color:var(--text2);margin-top:2px}
+btn,.btn{background:var(--blue);color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:#1d4ed8;box-shadow:0 2px 4px rgba(37,99,235,0.2)}
+.btn-green{background:#16a34a}
+.btn-green:hover{background:#15803d}
+.btn-gray{background:#ffffff;color:var(--text);border:1px solid var(--border-dark)}
+.btn-gray:hover{background:#f8fafc;border-color:#94a3b8}
+.btn-sm{padding:5px 12px;font-size:12px}
 .btn-group{display:flex;gap:8px;align-items:center}
 code,pre,.mono{font-family:'JetBrains Mono',monospace}
-.code-block{background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;color:#cdd9e5;line-height:1.6;overflow:auto;white-space:pre}
+.code-block{background:#ffffff;border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;color:#1e293b;line-height:1.6;overflow:auto;white-space:pre}
 .divider{border:none;border-top:1px solid var(--border);margin:4px 0}
 /* ── EDITOR SECTION ── */
-#editor-wrap{position:relative;flex:1;min-height:320px;background:#0d1117;border:1px solid var(--border);border-radius:8px;overflow:hidden;display:flex}
-#line-numbers{padding:12px 8px 12px 12px;color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6;text-align:right;user-select:none;min-width:44px;background:#0d1117;border-right:1px solid var(--border)}
-#code-editor{flex:1;background:transparent;color:#cdd9e5;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6;border:none;outline:none;padding:12px;resize:none;tab-size:4}
+#editor-wrap{position:relative;flex:1;min-height:330px;background:#ffffff;border:1px solid var(--border-dark);border-radius:8px;overflow:hidden;display:flex;box-shadow:0 1px 3px rgba(0,0,0,0.03)}
+#line-numbers{padding:12px 8px 12px 12px;color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6;text-align:right;user-select:none;min-width:44px;background:#f8fafc;border-right:1px solid var(--border)}
+#code-editor{flex:1;background:#ffffff;color:#0f172a;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.6;border:none;outline:none;padding:12px;resize:none;tab-size:4}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-select.lang-select,select.sample-select{background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-family:'Inter',sans-serif;cursor:pointer}
-#console-out{background:#0a0e14;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:12px;max-height:140px;overflow-y:auto;color:var(--text2)}
+select.lang-select,select.sample-select{background:#ffffff;color:var(--text);border:1px solid var(--border-dark);border-radius:6px;padding:7px 12px;font-size:13px;font-family:'Inter',sans-serif;cursor:pointer;outline:none;box-shadow:0 1px 2px rgba(0,0,0,0.02)}
+select.sample-select{max-width:300px;font-weight:500}
+select.sample-select optgroup{font-weight:700;color:#1e40af}
+#console-out{background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;max-height:130px;overflow-y:auto;color:#cbd5e1}
 .con-line{line-height:1.5}
 .con-line .pre{font-weight:700}
-.pre-lex{color:#58a6ff}.pre-parse{color:#bc8cff}.pre-sem{color:#39d353}
-.pre-repair{color:#3fb950}.pre-sec{color:#f85149}.pre-green{color:#d29922}
-.pre-ok{color:#3fb950}.pre-err{color:#f85149}
+.pre-lex{color:#60a5fa}.pre-parse{color:#c084fc}.pre-sem{color:#4ade80}
+.pre-repair{color:#34d399}.pre-sec{color:#f87171}.pre-green{color:#fbbf24}
+.pre-ok{color:#4ade80}.pre-err{color:#f87171}
 /* ── TOKEN TABLE ── */
 .token-table{width:100%;border-collapse:collapse;font-size:12.5px;font-family:'JetBrains Mono',monospace}
-.token-table th{padding:6px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card)}
-.token-table td{padding:5px 10px;border-bottom:1px solid #1c2128;vertical-align:middle}
-.token-table tr:hover td{background:#1c2128}
-.tok-KEYWORD{color:#cc99cd}.tok-IDENTIFIER{color:#79b8ff}
-.tok-OPERATOR{color:#f8c555}.tok-INTEGER,.tok-FLOAT{color:#9ecbff}
-.tok-STRING,.tok-CHAR{color:#9db1c5}.tok-SEMICOLON{color:var(--text2)}
+.token-table th{padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);border-bottom:2px solid var(--border);position:sticky;top:0;background:#f8fafc}
+.token-table td{padding:6px 12px;border-bottom:1px solid #f1f5f9;vertical-align:middle;color:var(--text)}
+.token-table tr:hover td{background:#f8fafc}
+.tok-KEYWORD{color:#7c3aed;font-weight:600}.tok-IDENTIFIER{color:#0369a1}
+.tok-OPERATOR{color:#d97706}.tok-INTEGER,.tok-FLOAT{color:#0284c7}
+.tok-STRING,.tok-CHAR{color:#059669}.tok-SEMICOLON{color:var(--text2)}
 .tok-UNKNOWN{color:var(--red)}.tok-HASH{color:var(--text2)}
 .tok-OPEN_PAREN,.tok-CLOSE_PAREN,.tok-OPEN_BRACE,.tok-CLOSE_BRACE,
-.tok-OPEN_BRACKET,.tok-CLOSE_BRACKET{color:#e8bf6a}
+.tok-OPEN_BRACKET,.tok-CLOSE_BRACKET{color:#b45309}
 .filter-bar{display:flex;gap:6px;flex-wrap:wrap}
-.filter-btn{padding:4px 12px;border-radius:999px;font-size:12px;font-weight:500;cursor:pointer;background:var(--bg3);color:var(--text2);border:1px solid var(--border);transition:all .15s}
-.filter-btn.active,.filter-btn:hover{background:#1f2d3d;color:var(--blue);border-color:var(--blue)}
+.filter-btn{padding:4px 12px;border-radius:999px;font-size:12px;font-weight:500;cursor:pointer;background:#ffffff;color:var(--text2);border:1px solid var(--border-dark);transition:all .15s}
+.filter-btn.active,.filter-btn:hover{background:#eff6ff;color:var(--blue);border-color:var(--blue)}
 /* ── SYNTAX ERRORS ── */
-.err-card{background:var(--card);border:1px solid #5c1a1a;border-radius:8px;padding:12px 14px;margin-bottom:8px}
+.err-card{background:#ffffff;border:1px solid #fca5a5;border-left:4px solid var(--red);border-radius:8px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 3px rgba(220,38,38,0.05)}
 .err-card .err-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.err-card .err-msg{color:var(--text);font-size:13px}
-.err-card .err-snippet{background:#0d1117;border-radius:4px;padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#cdd9e5;margin:6px 0}
-.err-card .err-fix{font-size:12px;color:var(--green);margin-top:4px}
-.grammar-panel{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px}
-.grammar-rule{font-family:'JetBrains Mono',monospace;font-size:12px;color:#cdd9e5;padding:3px 0;border-bottom:1px solid #21262d}
+.err-card .err-msg{color:var(--text);font-size:13px;font-weight:600}
+.err-card .err-snippet{background:#fff1f2;border-radius:4px;padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#991b1b;margin:6px 0;border:1px solid #fecdd3}
+.err-card .err-fix{font-size:12px;color:var(--green);margin-top:4px;font-weight:500}
+.grammar-panel{background:#ffffff;border:1px solid var(--border);border-radius:8px;padding:14px}
+.grammar-rule{font-family:'JetBrains Mono',monospace;font-size:12px;color:#334155;padding:4px 0;border-bottom:1px solid #f1f5f9}
 .grammar-rule:last-child{border-bottom:none}
 .no-errors{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;gap:8px;color:var(--green);font-weight:600;font-size:15px}
 /* ── AST ── */
 .ast-tree{font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px}
 .ast-node{position:relative;padding-left:20px}
-.ast-node::before{content:'';position:absolute;left:6px;top:0;bottom:0;border-left:1px solid var(--border)}
+.ast-node::before{content:'';position:absolute;left:6px;top:0;bottom:0;border-left:1px solid var(--border-dark)}
 .ast-node:last-child::before{height:12px}
-.ast-row{display:flex;align-items:center;gap:6px;padding:2px 0;cursor:pointer;border-radius:4px}
-.ast-row:hover{background:#1c2128}
+.ast-row{display:flex;align-items:center;gap:6px;padding:3px 4px;cursor:pointer;border-radius:4px;transition:background .1s}
+.ast-row:hover{background:#f1f5f9}
 .ast-toggle{color:var(--text2);font-size:10px;width:12px;display:inline-block;text-align:center}
-.ast-type{font-weight:600;padding:1px 6px;border-radius:4px;font-size:11px}
-.ast-ProgramNode{background:#0d1d30;color:var(--blue)}
-.ast-FunctionDeclNode{background:#1d1030;color:var(--purple)}
-.ast-VarDeclNode{background:#0d2420;color:var(--teal)}
-.ast-ReturnStmtNode{background:#2d1e00;color:var(--orange)}
-.ast-IfStmtNode{background:#2d2200;color:var(--yellow)}
-.ast-WhileStmtNode,.ast-ForStmtNode{background:#2d1e00;color:var(--orange)}
-.ast-CompoundStmtNode{background:var(--bg3);color:var(--text2)}
-.ast-ErrorNode{background:#2d1117;color:var(--red)}
-.ast-AssignExprNode{background:#0d2420;color:var(--teal)}
-.ast-ExprNode,.ast-ExprStmtNode{background:var(--bg3);color:var(--text2)}
+.ast-type{font-weight:600;padding:2px 8px;border-radius:4px;font-size:11px}
+.ast-ProgramNode{background:#dbeafe;color:#1e40af}
+.ast-FunctionDeclNode{background:#f3e8ff;color:#6b21a8}
+.ast-VarDeclNode{background:#ccfbf1;color:#0f766e}
+.ast-ReturnStmtNode{background:#fef3c7;color:#92400e}
+.ast-IfStmtNode{background:#fef9c3;color:#854d0e}
+.ast-WhileStmtNode,.ast-ForStmtNode{background:#ffedd5;color:#9a3412}
+.ast-CompoundStmtNode{background:#f1f5f9;color:#334155}
+.ast-ErrorNode{background:#fee2e2;color:#991b1b}
+.ast-AssignExprNode{background:#ccfbf1;color:#0f766e}
+.ast-ExprNode,.ast-ExprStmtNode{background:#f1f5f9;color:#475569}
 .ast-val{color:var(--text2);font-size:11px}
-.ast-line{color:#3d4d5d;font-size:10px}
+.ast-line{color:#94a3b8;font-size:10px}
 .ast-children{display:block}
 .ast-children.collapsed{display:none}
 /* ── SEMANTIC ── */
-.sem-card{background:var(--card);border-radius:8px;padding:12px 14px;margin-bottom:8px;border-left:3px solid var(--border)}
+.sem-card{background:#ffffff;border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;border-left:4px solid var(--border);box-shadow:0 1px 2px rgba(0,0,0,0.02)}
 .sem-card.ERROR{border-left-color:var(--red)}
 .sem-card.WARNING{border-left-color:var(--orange)}
 .sem-card.INFO{border-left-color:var(--blue)}
 .sem-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
 .sym-table{width:100%;border-collapse:collapse;font-size:12.5px}
-.sym-table th{padding:6px 10px;text-align:left;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border)}
-.sym-table td{padding:5px 10px;border-bottom:1px solid #21262d;font-family:'JetBrains Mono',monospace;font-size:12px}
+.sym-table th{padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);border-bottom:2px solid var(--border);background:#f8fafc}
+.sym-table td{padding:6px 12px;border-bottom:1px solid #f1f5f9;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text)}
 /* ── SECURITY ── */
-.threat-banner{border-radius:10px;padding:18px 20px;display:flex;align-items:center;gap:16px;margin-bottom:4px}
-.threat-banner.SECURE{background:#0d2114;border:1px solid #1a5c2e}
-.threat-banner.MEDIUM{background:#2d1e00;border:1px solid #5c3d00}
-.threat-banner.HIGH,.threat-banner.CRITICAL{background:#2d1117;border:1px solid #5c1a1a}
+.threat-banner{border-radius:10px;padding:18px 20px;display:flex;align-items:center;gap:16px;margin-bottom:4px;box-shadow:0 1px 3px rgba(0,0,0,0.03)}
+.threat-banner.SECURE{background:#f0fdf4;border:1px solid #86efac;color:#15803d}
+.threat-banner.MEDIUM{background:#fffbeb;border:1px solid #fde68a;color:#b45309}
+.threat-banner.HIGH,.threat-banner.CRITICAL{background:#fef2f2;border:1px solid #fca5a5;color:#b91c1c}
 .threat-label{font-size:22px;font-weight:800}
 .score-ring{width:64px;height:64px;position:relative;margin-left:auto}
 .score-ring svg{transform:rotate(-90deg)}
 .score-ring .score-val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700}
-.vuln-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px}
+.vuln-card{background:#ffffff;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,0.02)}
 .vuln-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.vuln-cwe{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);margin-left:auto}
+.vuln-cwe{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);margin-left:auto;background:#f1f5f9;padding:2px 8px;border-radius:4px}
 .vuln-section{margin-top:6px}
-.vuln-section-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.vuln-section-title{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
 .vuln-text{font-size:12.5px;color:var(--text);line-height:1.5}
-.hardened-block{background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#cdd9e5;white-space:pre;overflow:auto;max-height:200px;margin-top:6px}
+.hardened-block{background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#1e293b;white-space:pre;overflow:auto;max-height:200px;margin-top:6px}
 /* ── GREEN ── */
 .eco-grade{font-size:64px;font-weight:800;line-height:1}
 .eco-A\+,.eco-A{color:var(--green)}
 .eco-B{color:var(--teal)}
 .eco-C{color:var(--yellow)}
 .eco-D,.eco-F{color:var(--red)}
-.score-bar-wrap{background:var(--bg3);border-radius:999px;height:10px;overflow:hidden;margin:8px 0}
+.score-bar-wrap{background:#f1f5f9;border-radius:999px;height:10px;overflow:hidden;margin:8px 0;border:1px solid var(--border)}
 .score-bar{height:100%;border-radius:999px;transition:width .4s ease;background:linear-gradient(90deg,var(--red),var(--orange),var(--green))}
 .rec-list{list-style:none;padding:0}
-.rec-list li{padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);display:flex;align-items:flex-start;gap:8px}
+.rec-list li{padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);display:flex;align-items:flex-start;gap:8px}
 .rec-list li::before{content:'→';color:var(--blue);font-weight:700;flex-shrink:0}
 /* ── REPAIR ── */
 .repair-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px}
-.rtab{padding:8px 16px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.rtab{padding:8px 16px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
 .rtab.active{color:var(--blue);border-bottom-color:var(--blue)}
-.diff-container{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;font-family:'JetBrains Mono',monospace;font-size:12px}
+.diff-container{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;font-family:'JetBrains Mono',monospace;font-size:12px;background:#ffffff}
 .diff-side{overflow:auto}
-.diff-header{padding:6px 12px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text2)}
-.diff-line{padding:1px 12px;white-space:pre;line-height:1.6}
-.diff-line.del{background:#2d1117;color:#f97583}
-.diff-line.add{background:#0d2114;color:#7ee787}
-.diff-line.same{color:#8b949e}
-.diff-line .ln{color:#3d4d5d;margin-right:12px;display:inline-block;width:28px;text-align:right;user-select:none}
+.diff-header{padding:8px 12px;background:#f8fafc;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:var(--text2)}
+.diff-line{padding:2px 12px;white-space:pre;line-height:1.6}
+.diff-line.del{background:#fee2e2;color:#991b1b}
+.diff-line.add{background:#dcfce7;color:#166534}
+.diff-line.same{color:#475569}
+.diff-line .ln{color:#94a3b8;margin-right:12px;display:inline-block;width:28px;text-align:right;user-select:none}
 .thought-item{display:flex;gap:12px;margin-bottom:10px}
 .thought-turn{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
-.thought-turn.Perceive,.thought-turn.Perception{background:#0d1d30;color:var(--blue)}
-.thought-turn.Verify,.thought-turn.Verification{background:#1d1030;color:var(--purple)}
-.thought-turn.Reflect,.thought-turn.Reflection{background:#2d2200;color:var(--yellow)}
-.thought-turn.Action{background:#0d2420;color:var(--teal)}
-.thought-turn.Resolution{background:#0d2114;color:var(--green)}
-.thought-turn.Reasoning{background:#1d1030;color:var(--purple)}
+.thought-turn.Perceive,.thought-turn.Perception{background:#dbeafe;color:var(--blue)}
+.thought-turn.Verify,.thought-turn.Verification{background:#f3e8ff;color:var(--purple)}
+.thought-turn.Reflect,.thought-turn.Reflection{background:#fef9c3;color:var(--yellow)}
+.thought-turn.Action{background:#ccfbf1;color:var(--teal)}
+.thought-turn.Resolution{background:#dcfce7;color:var(--green)}
+.thought-turn.Reasoning{background:#f3e8ff;color:var(--purple)}
 .thought-body{flex:1}
 .thought-phase{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
 .thought-msg{font-size:13px;color:var(--text);margin-top:2px}
 /* ── REPORT ── */
 .report-summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
-.report-item{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+.report-item{background:#ffffff;border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,0.02)}
 .report-item .ri-val{font-size:28px;font-weight:800}
 .report-item .ri-label{font-size:12px;color:var(--text2);margin-top:4px}
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:var(--bg)}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
 /* ── SPINNER ── */
 .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
 @keyframes spin{to{transform:rotate(360deg)}}
 /* ── PIPELINE STEP ── */
-.pipeline-step{padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;background:var(--bg3);color:var(--text2);border:1px solid var(--border);transition:all .3s}
-.pipeline-step.active{background:#1f2d3d;color:var(--blue);border-color:var(--blue);box-shadow:0 0 8px rgba(88,166,255,.25)}
-.pipeline-step.done{background:#0d2114;color:var(--green);border-color:var(--green)}
-.pipeline-step.running{background:#2d1e00;color:var(--orange);border-color:var(--orange);animation:pulsePipe 1s ease-in-out infinite}
+.pipeline-step{padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;background:#ffffff;color:var(--text2);border:1px solid var(--border);transition:all .3s}
+.pipeline-step.active{background:#eff6ff;color:var(--blue);border-color:#93c5fd;box-shadow:0 0 8px rgba(37,99,235,.15)}
+.pipeline-step.done{background:#f0fdf4;color:var(--green);border-color:#86efac}
+.pipeline-step.running{background:#fffbeb;color:var(--orange);border-color:#fde68a;animation:pulsePipe 1s ease-in-out infinite}
 @keyframes pulsePipe{0%,100%{opacity:1}50%{opacity:.6}}
 /* ── OPTIMIZER CHANGE CARD ── */
-.opt-change{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:8px;border-left:3px solid var(--border)}
+.opt-change{background:#ffffff;border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:8px;border-left:4px solid var(--border);box-shadow:0 1px 2px rgba(0,0,0,0.02)}
 .opt-change.Critical{border-left-color:var(--red)}
 .opt-change.High{border-left-color:var(--orange)}
 .opt-change.Medium{border-left-color:var(--yellow)}
 .opt-change.Low{border-left-color:var(--blue)}
 .opt-change.None{border-left-color:var(--green)}
-
 </style>
 </head>
 <body>
@@ -288,24 +290,107 @@ select.lang-select,select.sample-select{background:var(--bg3);color:var(--text);
           <div class="page-title">Code Editor</div>
           <div class="page-subtitle">Paste or type C++ code, then run full analysis or quick repair</div>
         </div>
-        <div class="toolbar">
+                <div class="toolbar">
           <select class="lang-select" id="lang-select">
             <option value="cpp">C++</option>
             <option value="c">C</option>
           </select>
           <select class="sample-select" id="sample-select" onchange="loadSample(this.value)">
-            <option value="">Load Sample…</option>
-            <option value="test1.cpp">test1.cpp (missing semicolons)</option>
-            <option value="test_vulnerable.cpp">test_vulnerable.cpp (security)</option>
-            <option value="sanjay_test1.cpp">sanjay_test1.cpp</option>
-            <option value="test_missing_semicolon.cpp">test_missing_semicolon.cpp</option>
-            <option value="test_unmatched_brace.cpp">test_unmatched_brace.cpp</option>
-            <option value="test_while_loop.cpp">test_while_loop.cpp</option>
+            <option value="">📂 Load 70 Test Cases...</option>
+            
+            <optgroup label="📌 Category 1: Syntax & Punctuation (TC01-TC15)">
+              <option value="tc01_missing_semicolon_var.cpp">TC01: Missing Semicolon (Var Decl)</option>
+              <option value="tc02_missing_semicolon_return.cpp">TC02: Missing Semicolon (Return)</option>
+              <option value="tc03_missing_semicolon_assignment.cpp">TC03: Missing Semicolon (Assign)</option>
+              <option value="tc04_missing_semicolon_call.cpp">TC04: Missing Semicolon (Call)</option>
+              <option value="tc05_missing_semicolon_struct.cpp">TC05: Missing Semicolon (Struct)</option>
+              <option value="tc06_unmatched_brace_open.cpp">TC06: Unmatched Opening Brace</option>
+              <option value="tc07_unmatched_brace_extra_close.cpp">TC07: Extra Closing Brace</option>
+              <option value="tc08_unmatched_brace_if_block.cpp">TC08: Unmatched Brace (If Block)</option>
+              <option value="tc09_unmatched_brace_loop.cpp">TC09: Unmatched Brace (Loop Body)</option>
+              <option value="tc10_unmatched_paren_if.cpp">TC10: Unmatched Paren (If Condition)</option>
+              <option value="tc11_unmatched_paren_expr.cpp">TC11: Extra Paren (Expression)</option>
+              <option value="tc12_unterminated_string_basic.cpp">TC12: Unterminated String</option>
+              <option value="tc13_unterminated_string_cout.cpp">TC13: Unterminated String (Cout)</option>
+              <option value="tc14_extra_tokens_stray.cpp">TC14: Extra Stray Tokens</option>
+              <option value="tc15_dangling_operator.cpp">TC15: Dangling Operator (+)</option>
+            </optgroup>
+
+            <optgroup label="🔄 Category 2: Control Flow & Loops (TC16-TC25)">
+              <option value="tc16_invalid_conditional_if.cpp">TC16: Missing If Parens</option>
+              <option value="tc17_orphan_else_no_if.cpp">TC17: Orphan Else Without If</option>
+              <option value="tc18_invalid_while_loop.cpp">TC18: Missing While Parens</option>
+              <option value="tc19_invalid_for_loop_header.cpp">TC19: Missing For Header Parens</option>
+              <option value="tc20_for_loop_comma_separated.cpp">TC20: For Loop Comma Delimiters</option>
+              <option value="tc21_invalid_switch_no_paren.cpp">TC21: Switch Missing Parens</option>
+              <option value="tc22_switch_case_missing_colon.cpp">TC22: Case Missing Colon (:)</option>
+              <option value="tc23_switch_duplicate_default.cpp">TC23: Duplicate Switch Default</option>
+              <option value="tc24_do_while_missing_semicolon.cpp">TC24: Do-While Missing Semicolon</option>
+              <option value="tc25_break_outside_loop.cpp">TC25: Break Outside Loop/Switch</option>
+            </optgroup>
+
+            <optgroup label="🏷️ Category 3: Declarations & Types (TC26-TC40)">
+              <option value="tc26_invalid_assignment_literal_lhs.cpp">TC26: Literal on Assignment LHS</option>
+              <option value="tc27_invalid_assignment_expression_lhs.cpp">TC27: Expression on Assign LHS</option>
+              <option value="tc28_duplicate_type_specifier.cpp">TC28: Duplicate Type (int int)</option>
+              <option value="tc29_conflicting_type_specifiers.cpp">TC29: Conflicting Types (int float)</option>
+              <option value="tc30_missing_identifier_declaration.cpp">TC30: Missing Variable Name</option>
+              <option value="tc31_invalid_array_decl_unclosed_bracket.cpp">TC31: Array Missing Bracket ]</option>
+              <option value="tc32_array_negative_size.cpp">TC32: Array Negative Dimension</option>
+              <option value="tc33_invalid_function_decl_no_body.cpp">TC33: Function Missing Body Braces</option>
+              <option value="tc34_function_param_missing_type.cpp">TC34: Function Param Missing Type</option>
+              <option value="tc35_misplaced_keyword_in_expr.cpp">TC35: Misplaced Keyword in Expr</option>
+              <option value="tc36_misplaced_keyword_if_in_return.cpp">TC36: Misplaced If in Return</option>
+              <option value="tc37_invalid_class_missing_semicolon.cpp">TC37: Class Missing Semicolon</option>
+              <option value="tc38_invalid_namespace_no_braces.cpp">TC38: Namespace Missing Braces</option>
+              <option value="tc39_reserved_keyword_as_identifier.cpp">TC39: Reserved Keyword Identifier</option>
+              <option value="tc40_void_variable_declaration.cpp">TC40: Illegal Void Variable Type</option>
+            </optgroup>
+
+            <optgroup label="🧠 Category 4: Semantics & Scope (TC41-TC50)">
+              <option value="tc41_undeclared_identifier.cpp">TC41: Undeclared Identifier</option>
+              <option value="tc42_out_of_scope_variable.cpp">TC42: Out-of-Scope Variable Access</option>
+              <option value="tc43_duplicate_variable_redecl.cpp">TC43: Variable Redeclaration</option>
+              <option value="tc44_uninitialized_variable_read.cpp">TC44: Uninitialized Read (CWE-457)</option>
+              <option value="tc45_non_void_func_missing_return.cpp">TC45: Non-Void Missing Return</option>
+              <option value="tc46_void_func_returning_value.cpp">TC46: Void Function Return Value</option>
+              <option value="tc47_type_mismatch_pointer_int.cpp">TC47: Pointer Type Mismatch</option>
+              <option value="tc48_division_by_zero_constant.cpp">TC48: Division by Zero (CWE-369)</option>
+              <option value="tc49_calling_non_function.cpp">TC49: Calling Non-Callable as Func</option>
+              <option value="tc50_variable_shadowing_warning.cpp">TC50: Nested Variable Shadowing</option>
+            </optgroup>
+
+            <optgroup label="🛡️ Category 5: Cybersecurity & Threats (TC51-TC60)">
+              <option value="tc51_cwe120_gets_buffer_overflow.cpp">TC51: CWE-120 gets() Overflow</option>
+              <option value="tc52_cwe121_strcpy_stack_overflow.cpp">TC52: CWE-121 strcpy() Stack Overrun</option>
+              <option value="tc53_cwe120_strcat_concatenation_overflow.cpp">TC53: CWE-120 strcat() Overrun</option>
+              <option value="tc54_cwe134_format_string_vulnerability.cpp">TC54: CWE-134 Format String Flaw</option>
+              <option value="tc55_cwe401_memory_leak_new_array.cpp">TC55: CWE-401 new[] Leak</option>
+              <option value="tc56_cwe401_malloc_without_free.cpp">TC56: CWE-401 malloc() Leak</option>
+              <option value="tc57_cwe835_infinite_loop_dos.cpp">TC57: CWE-835 Infinite Loop DoS</option>
+              <option value="tc58_cwe190_integer_overflow.cpp">TC58: CWE-190 Integer Wraparound</option>
+              <option value="tc59_cwe416_use_after_free.cpp">TC59: CWE-416 Use After Free</option>
+              <option value="tc60_cwe476_null_pointer_dereference.cpp">TC60: CWE-476 NULL Dereference</option>
+            </optgroup>
+
+            <optgroup label="⚡ Category 6: Complexity & Optimization (TC61-TC70)">
+              <option value="tc61_nested_loops_quadratic_search.cpp">TC61: O(n²) Nested Duplicate Search</option>
+              <option value="tc62_quadratic_two_sum_search.cpp">TC62: O(n²) Two-Sum Brute Force</option>
+              <option value="tc63_repeated_endl_io_flushing.cpp">TC63: Costly endl Flush in Loop</option>
+              <option value="tc64_vector_reallocation_no_reserve.cpp">TC64: Vector Reallocation (No Reserve)</option>
+              <option value="tc65_strlen_in_for_condition.cpp">TC65: O(n²) strlen() in Loop Header</option>
+              <option value="tc66_exponential_recursive_fibonacci.cpp">TC66: O(2ⁿ) Exponential Fibonacci</option>
+              <option value="tc67_pass_by_value_large_string.cpp">TC67: Costly Pass-by-Value Copy</option>
+              <option value="tc68_bubble_sort_quadratic.cpp">TC68: Bubble Sort O(n²)</option>
+              <option value="tc69_linear_search_lookup.cpp">TC69: Repeated O(n) Vector Lookup</option>
+              <option value="tc70_string_concat_loop.cpp">TC70: Quadratic String Concatenation</option>
+            </optgroup>
           </select>
           <button class="btn" onclick="runFull()">▶ Run Full Analysis</button>
           <button class="btn btn-green" onclick="quickRepair()">⚡ Quick Repair</button>
           <button class="btn btn-gray" onclick="clearEditor()">✕ Clear</button>
-          <button class="btn btn-gray btn-sm" onclick="downloadCode()">⬇ Download</button>
+          <button class="btn btn-gray btn-sm" onclick="downloadCode()">⬇ Download Code</button>
+          <a href="/70_C++_Test_Cases.zip" class="btn btn-gray btn-sm" download style="margin-left:auto;font-weight:600">📦 Download 70 Test Cases (.ZIP)</a>
         </div>
         <div id="editor-wrap">
           <div id="line-numbers">1</div>

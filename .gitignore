@@ -38,3 +38,7 @@ features.csv
 augmented_dataset/
 CD_Project/
 performance_analysis/
+build_70_dataset.py
+update_theme_and_samples.py
+/tc*.cpp
+!test_cases_70/*.cpp
