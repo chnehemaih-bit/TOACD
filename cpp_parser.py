@@ -985,7 +985,7 @@ def analyze_gcc_errors(code_str, filename="main.cpp"):
 
     # ── 4. Undeclared Variables ───────────────────────────────────────────────
     declared_vars = set(BUILTIN_IDENTIFIERS)
-    for m in re.finditer(r'(?:int|float|double|char|bool|void|auto|string|long|short|unsigned|signed)\s+([a-zA-Z_][a-zA-Z0-9_]*)', code_str):
+    for m in re.finditer(r'\b(?:int|float|double|char|bool|void|auto|string|long|short|unsigned|signed)\s+([a-zA-Z_][a-zA-Z0-9_]*)\b', code_str):
         declared_vars.add(m.group(1))
 
     for line_idx, line in enumerate(lines, 1):
@@ -1009,7 +1009,7 @@ def analyze_gcc_errors(code_str, filename="main.cpp"):
     # ── 5. Wrong Operator ('=' in conditions) ─────────────────────────────────
     for line_idx, line in enumerate(lines, 1):
         clean_line = re.sub(r'//.*', '', line)
-        m_cond = re.search(r'(if|while)\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([^=;)]+)\s*\)', clean_line)
+        m_cond = re.search(r'\b(if|while)\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([^=;)]+)\s*\)', clean_line)
         if m_cond:
             col = clean_line.find("=") + 1
             var_name = m_cond.group(2)
@@ -1028,7 +1028,7 @@ def analyze_gcc_errors(code_str, filename="main.cpp"):
     # ── 6. Missing quotes in printf ───────────────────────────────────────────
     for line_idx, line in enumerate(lines, 1):
         clean_line = re.sub(r'//.*', '', line)
-        m_pf = re.search(r'printf\s*\(\s*([a-zA-Z0-9_ ]+)\s*\)\s*;', clean_line)
+        m_pf = re.search(r'\bprintf\s*\(\s*([a-zA-Z0-9_ ]+)\s*\)\s*;', clean_line)
         if m_pf:
             arg = m_pf.group(1).strip()
             if ' ' in arg and not (arg.startswith('"') and arg.endswith('"')):
@@ -1069,11 +1069,11 @@ def analyze_gcc_errors(code_str, filename="main.cpp"):
             continue
         if clean_line in ("{ ", "}", "{"):
             continue
-        if re.match(r'^(if|else|while|for|switch|do)', clean_line):
+        if re.match(r'^(if|else|while|for|switch|do)\b', clean_line):
             continue
         if re.match(r'^(public|private|protected)\s*:', clean_line):
             continue
-        if re.match(r'^(template\s*<.*>)?\s*(inline\s+|static\s+)?(int|float|double|char|bool|void|auto).*[)]\s*$', clean_line):
+        if re.match(r'^(template\s*<.*>)?\s*(inline\s+|static\s+)?(int|float|double|char|bool|void|auto)\b.*[)]\s*$', clean_line):
             continue
         if re.search(r'[a-zA-Z0-9_]', clean_line):
             col = len(line.rstrip()) + 1

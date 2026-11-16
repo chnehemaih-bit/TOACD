@@ -1086,12 +1086,23 @@ function switchTab(name) {
   document.getElementById('sb-' + name).classList.add('active');
 }
 
-// ── Editor line numbers ────────────────────────────────────────────────────
+// ── Editor line numbers with GCC error highlight ───────────────────────────
 function syncLines() {
   const ta = document.getElementById('code-editor');
   const ln = document.getElementById('line-numbers');
-  const lines = ta.value.split('\n').length;
-  ln.innerHTML = Array.from({length: lines}, (_, i) => i + 1).join('\n');
+  if (!ta || !ln) return;
+  const count = ta.value.split('\n').length;
+  const errLines = new Set((state.analyze?.syntax_errors || []).map(e => e.line).filter(l => l > 0));
+  let html = '';
+  for (let i = 1; i <= count; i++) {
+    const isErr = errLines.has(i);
+    html += `<div class="ln-num ${isErr ? 'line-error' : ''}">${i}</div>`;
+  }
+  ln.innerHTML = html;
+}
+
+function highlightErrorLines(errors) {
+  syncLines();
 }
 function syncScroll() {
   const ta = document.getElementById('code-editor');
@@ -1261,6 +1272,29 @@ async function runFull() {
     const pc = document.getElementById('perf-confidence');
     if (pc) pc.textContent = (state.repair.confidence * 100).toFixed(1) + '%';
   }
+
+  // Phase 4: Dynamic Performance Graphs (restore Chart.js)
+  if (d1 && d1.performance) {
+    renderAnalyticsCharts(d1.performance);
+  }
+
+  // Phase 3: Buzzer Sound & Full-Screen Error Signal
+  const seList = (state.analyze?.syntax_errors || []);
+  const crObj  = (state.analyze?.critical_risks || {});
+  const hasSyntaxErrors = seList.length > 0;
+  const highestSev = crObj.highest_severity || 'NONE';
+  const hasCriticalRisks = (highestSev === 'CRITICAL' || highestSev === 'HIGH');
+
+  if (hasSyntaxErrors || hasCriticalRisks) {
+    startBuzzer(30);
+    if (hasSyntaxErrors) {
+      const topErr = seList[0];
+      showFullscreenError(topErr, topErr.line, topErr.column, topErr.snippet);
+    }
+  } else {
+    stopBuzzer(false);
+    dismissFullscreenError();
+  }
   
   setStatus('Done', 'done');
   log('DONE',`Full analysis complete in ${totalElapsed} ms — check each tab`,'ok');
@@ -1336,25 +1370,28 @@ function filterTokens(filter, btn) {
   fillTokenTable(filtered);
 }
 
-// ── RENDER SYNTAX ──────────────────────────────────────────────────────────
+// ── RENDER SYNTAX (DEV-C++ / GCC STYLE) ──────────────────────────────────
 function renderSyntax(errors, grammar) {
   const panel = document.getElementById('syntax-errors-panel');
   if (!errors || errors.length===0) {
-    panel.innerHTML = '<div class="no-errors">✅ No syntax errors detected</div>';
+    panel.innerHTML = '<div class="no-errors">✅ No syntax errors detected — Compilation clean</div>';
   } else {
     panel.innerHTML = errors.map(e => `
       <div class="err-card">
         <div class="err-head">
           <span class="badge badge-red">${esc(e.severity||'ERROR')}</span>
           <span class="badge badge-gray mono">${esc(e.type)}</span>
-          ${e.line ? `<span style="font-size:12px;color:var(--text2)">Line ${e.line}${e.column?':'+e.column:''}</span>`:''}
+          ${e.line ? `<span style="font-size:12px;color:var(--text2);font-weight:600">Line ${e.line}${e.column?':'+e.column:''}</span>`:''}
         </div>
         <div class="err-msg">${esc(e.message)}</div>
         ${e.snippet ? `<div class="err-snippet">${esc(e.snippet)}</div>`:''}
+        ${e.suggestion ? `<div style="font-size:12px;color:#16a34a;margin-top:4px;font-weight:600"><strong>Fix:</strong> ${esc(e.suggestion)}</div>`:''}
+        ${e.alternatives && e.alternatives.length ? `<div style="font-size:11.5px;color:#64748b;margin-top:2px">Alternatives: ${e.alternatives.map(a=>`<code>${esc(a)}</code>`).join(' • ')}</div>`:''}
       </div>`).join('');
   }
   const gl = document.getElementById('grammar-list');
-  gl.innerHTML = (grammar||[]).map(r=>`<div class="grammar-rule">${esc(r)}</div>`).join('');
+  if (gl) gl.innerHTML = (grammar||[]).map(r=>`<div class="grammar-rule">${esc(r)}</div>`).join('');
+  highlightErrorLines(errors);
 }
 
 // ── RENDER AST (GRAPHICAL VISUAL TREE & OUTLINE) ──────────────────────────
@@ -1681,32 +1718,105 @@ function renderGreen(g) {
     : '<li style="color:var(--green)">Code is already well-optimized!</li>';
 }
 
-// ── RENDER REPAIR ─────────────────────────────────────────────────────────
+// ── RENDER REPAIR & SIDE-BY-SIDE 10-PASS VERIFICATION (PHASE 1) ──────────
 function renderRepair(rep) {
-  const healed = rep.healed_code || '';
+  const healed = rep.corrected_code || rep.healed_code || '';
+  state.correctedCode = healed;
+
   document.getElementById('healed-code-pre').textContent = healed || '—';
   document.getElementById('r-turns').textContent  = rep.turns_taken ?? '—';
-  document.getElementById('r-status').textContent = rep.success ? '✅ Repaired' : '⚠️ Partial';
-  document.getElementById('r-status').style.color = rep.success ? 'var(--green)' : 'var(--orange)';
 
-  // Diff
+  const isPassed = rep.success || rep.recheck_passed;
+  const statEl = document.getElementById('r-status');
+  if (statEl) {
+    statEl.textContent = isPassed ? '✅ Repaired (0 Errors)' : `❌ Incomplete (${rep.errors_remaining || 1} Error)`;
+    statEl.style.color = isPassed ? 'var(--green)' : 'var(--red)';
+  }
+
+  // Verification Banner
+  const vBanner = document.getElementById('repair-verification-banner');
+  const vIcon = document.getElementById('repair-banner-icon');
+  const vTitle = document.getElementById('repair-banner-title');
+  const vSub = document.getElementById('repair-banner-sub');
+  if (vBanner) {
+    if (isPassed) {
+      vBanner.style.background = '#f0fdf4';
+      vBanner.style.borderColor = '#86efac';
+      if (vIcon) vIcon.textContent = '✅';
+      if (vTitle) {
+        vTitle.style.color = '#166534';
+        vTitle.textContent = `REPAIR VERIFICATION PASSED — 0 Errors Remaining (${rep.turns_taken} Pass${rep.turns_taken > 1 ? 'es' : ''})`;
+      }
+      if (vSub) vSub.textContent = `Iterative re-checker verified zero AST error nodes after ${rep.turns_taken} compiler pass(es).`;
+    } else {
+      vBanner.style.background = '#fef2f2';
+      vBanner.style.borderColor = '#fca5a5';
+      if (vIcon) vIcon.textContent = '❌';
+      if (vTitle) {
+        vTitle.style.color = '#991b1b';
+        vTitle.textContent = `REPAIR INCOMPLETE — Line ${rep.unresolved_line || 1} Unresolved`;
+      }
+      if (vSub) vSub.textContent = rep.unresolved_reason || `Could not satisfy zero-error verification after ${rep.turns_taken || 10} passes. Never claiming repaired unless re-check passes 0 errors.`;
+    }
+  }
+
+  // Modifications applied count
+  const changes = rep.changes || [];
+  const chCount = document.getElementById('r-changes-count');
+  if (chCount) {
+    chCount.textContent = `${changes.length} modification(s) applied`;
+    chCount.style.color = isPassed ? '#16a34a' : '#ea580c';
+  }
+
+  // Render Side-by-Side (Phase 1)
+  renderSideBySide(state.originalCode, healed);
+
+  // Render Unified Diff
   renderDiff(state.originalCode, healed);
 
   // Thought trail
   const thoughts = rep.thoughts || [];
   const trail = document.getElementById('thought-trail');
-  trail.innerHTML = thoughts.map(t=>{
-    const phase = t.phase || 'Action';
-    const turnKey = phase.split(' ')[0];
-    return `<div class="thought-item">
-      <div class="thought-turn ${turnKey}">${t.turn||'—'}</div>
-      <div class="thought-body">
-        <div class="thought-phase">${esc(phase)}</div>
-        <div class="thought-msg">${esc(t.message||'')}</div>
-        ${t.timestamp?`<div style="font-size:11px;color:var(--text2)">${esc(t.timestamp)}</div>`:''}
-      </div>
+  if (trail) {
+    trail.innerHTML = thoughts.map(t=>{
+      const phase = t.phase || 'Action';
+      const turnKey = phase.split(' ')[0];
+      return `<div class="thought-item">
+        <div class="thought-turn ${turnKey}">${t.turn||'—'}</div>
+        <div class="thought-body">
+          <div class="thought-phase">${esc(phase)}</div>
+          <div class="thought-msg">${esc(t.message||'')}</div>
+          ${t.timestamp?`<div style="font-size:11px;color:var(--text2)">${esc(t.timestamp)}</div>`:''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function renderSideBySide(original, healed) {
+  const container = document.getElementById('repair-sidebyside-container');
+  if (!container) return;
+  const origLines   = (original||'').split('\n');
+  const healedLines = (healed||'').split('\n');
+  const leftHTML  = [];
+  const rightHTML = [];
+  const maxLen = Math.max(origLines.length, healedLines.length);
+  for (let i=0; i<maxLen; i++) {
+    const ol = origLines[i]  ?? '';
+    const hl = healedLines[i] ?? '';
+    const changed = ol !== hl;
+    leftHTML.push(`<div class="diff-line ${changed?'del':'same'}"><span class="ln">${i+1}</span>${esc(ol)}</div>`);
+    rightHTML.push(`<div class="diff-line ${changed?'add':'same'}"><span class="ln">${i+1}</span>${esc(hl)}</div>`);
+  }
+  container.innerHTML = `
+    <div class="diff-side">
+      <div class="diff-header" style="background:#fee2e2;color:#991b1b;font-weight:700;">⬅ Original Source (With Syntax Issues)</div>
+      ${leftHTML.join('')}
+    </div>
+    <div class="diff-side" style="border-left:1px solid var(--border);background:#ffffff;">
+      <div class="diff-header" style="background:#dcfce7;color:#166534;font-weight:700;">➡ Corrected &amp; Verified C++ Code</div>
+      ${rightHTML.join('')}
     </div>`;
-  }).join('');
 }
 
 function renderDiff(original, healed) {
@@ -1722,25 +1832,41 @@ function renderDiff(original, healed) {
     leftHTML.push(`<div class="diff-line ${changed?'del':'same'}"><span class="ln">${i+1}</span>${esc(ol)}</div>`);
     rightHTML.push(`<div class="diff-line ${changed?'add':'same'}"><span class="ln">${i+1}</span>${esc(hl)}</div>`);
   }
-  document.getElementById('diff-container').innerHTML = `
-    <div class="diff-side">
-      <div class="diff-header">⬅ Original</div>
-      ${leftHTML.join('')}
-    </div>
-    <div class="diff-side" style="border-left:1px solid var(--border)">
-      <div class="diff-header">➡ Repaired</div>
-      ${rightHTML.join('')}
-    </div>`;
+  const diffCont = document.getElementById('diff-container');
+  if (diffCont) {
+    diffCont.innerHTML = `
+      <div class="diff-side">
+        <div class="diff-header">⬅ Original</div>
+        ${leftHTML.join('')}
+      </div>
+      <div class="diff-side" style="border-left:1px solid var(--border)">
+        <div class="diff-header">➡ Repaired</div>
+        ${rightHTML.join('')}
+      </div>`;
+  }
 }
 
 // ── REPAIR TABS ───────────────────────────────────────────────────────────
 function switchRepairTab(name, btn) {
-  ['repaired','diff','trail'].forEach(n=>{
+  ['sidebyside','repaired','diff','trail'].forEach(n=>{
     const el = document.getElementById('rt-'+n);
     if(el) el.style.display = n===name ? 'block' : 'none';
   });
-  document.querySelectorAll('.rtab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.repair-tabs .rtab').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
+}
+
+function copyCorrectedCode() {
+  const code = state.correctedCode || document.getElementById('healed-code-pre').textContent;
+  if (!code || code === '—') {
+    alert('No corrected code available to copy.');
+    return;
+  }
+  navigator.clipboard.writeText(code).then(() => {
+    log('COPY', 'Corrected code copied to clipboard!', 'ok');
+  }).catch(() => {
+    alert('Could not copy automatically. You can copy it manually from the Corrected Code tab.');
+  });
 }
 
 // ── UPDATE REPORT ─────────────────────────────────────────────────────────
@@ -1895,51 +2021,214 @@ int main() {
 }`;
 syncLines();
 
-// ── Web Audio API Danger Sound Synthesizer ─────────────────────────────────
-let audioCtx = null;
-let soundMuted = false;
-let lastRiskSignature = '';
+// ── PHASE 3: WEB AUDIO API BUZZER & ALARM SYSTEM ─────────────────────────
+let buzzerAudioCtx = null;
+let buzzerOsc = null;
+let buzzerGain = null;
+let buzzerSecondsRemaining = 30;
+let buzzerCountdownInterval = null;
+let buzzerBeepTimer = null;
+let buzzerMuted = false;
+let buzzerVolume = 0.5;
+let isBuzzerActive = false;
+let isBeepState = false;
 
-function playDangerSound(severity) {
-  if (soundMuted) return;
+function getBuzzerAudioContext() {
   try {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!buzzerAudioCtx) {
+      buzzerAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
+    if (buzzerAudioCtx.state === 'suspended') {
+      buzzerAudioCtx.resume();
     }
-    const now = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    
-    // Higher pitch for CRITICAL (880Hz -> 587Hz), mid for HIGH (660Hz -> 440Hz)
-    const freq = severity === 'CRITICAL' ? 880 : 660;
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq, now);
-    osc.frequency.exponentialRampToValueAtTime(freq * 0.75, now + 0.16);
-    
-    gain.gain.setValueAtTime(0.12, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
-    
+  } catch(e) {
+    console.warn('AudioContext init blocked or error:', e);
+  }
+  return buzzerAudioCtx;
+}
+
+function startBuzzer(durationSec = 30) {
+  // Never stack buzzers: stop any existing oscillator/timer first
+  stopBuzzer(false);
+  try {
+    const ctx = getBuzzerAudioContext();
+    if (!ctx) return;
+
+    isBuzzerActive = true;
+    isBeepState = false;
+    buzzerSecondsRemaining = durationSec;
+
+    // UI elements update
+    const stopBtn = document.getElementById('btn-stop-buzzer');
+    const badge = document.getElementById('buzzer-countdown-badge');
+    if (stopBtn) stopBtn.style.display = 'inline-flex';
+    if (badge) {
+      badge.style.display = 'inline-flex';
+      badge.textContent = `Buzzer: ${buzzerSecondsRemaining}s`;
+    }
+    const fsCount = document.getElementById('fs-buzzer-countdown');
+    if (fsCount) fsCount.textContent = `Alarm: ${buzzerSecondsRemaining}s remaining`;
+
+    // Create oscillator & gain node (sawtooth wave ~750 Hz for loud cutting alarm)
+    buzzerOsc = ctx.createOscillator();
+    buzzerOsc.type = 'sawtooth';
+    buzzerOsc.frequency.setValueAtTime(750, ctx.currentTime);
+
+    buzzerGain = ctx.createGain();
+    buzzerGain.gain.setValueAtTime(0.0001, ctx.currentTime);
+
+    buzzerOsc.connect(buzzerGain);
+    buzzerGain.connect(ctx.destination);
+    buzzerOsc.start();
+
+    // 0.4s ON, 0.2s OFF repeating pattern
+    function scheduleNextBeep() {
+      if (!isBuzzerActive || !buzzerAudioCtx || !buzzerGain) return;
+      const now = buzzerAudioCtx.currentTime;
+      const targetVol = buzzerMuted ? 0.0001 : buzzerVolume;
+      if (!isBeepState) {
+        buzzerGain.gain.cancelScheduledValues(now);
+        buzzerGain.gain.setValueAtTime(targetVol, now);
+        isBeepState = true;
+        buzzerBeepTimer = setTimeout(scheduleNextBeep, 400); // 0.4s ON
+      } else {
+        buzzerGain.gain.cancelScheduledValues(now);
+        buzzerGain.gain.setValueAtTime(0.0001, now);
+        isBeepState = false;
+        buzzerBeepTimer = setTimeout(scheduleNextBeep, 200); // 0.2s OFF
+      }
+    }
+    scheduleNextBeep();
+
+    // 1-second countdown ticker
+    buzzerCountdownInterval = setInterval(() => {
+      buzzerSecondsRemaining--;
+      if (buzzerSecondsRemaining <= 0) {
+        stopBuzzer(true);
+      } else {
+        if (badge) badge.textContent = `Buzzer: ${buzzerSecondsRemaining}s`;
+        if (fsCount) fsCount.textContent = `Alarm: ${buzzerSecondsRemaining}s remaining`;
+      }
+    }, 1000);
+
+    log('BUZZER', `Alarm activated: 30s countdown, 750Hz sawtooth wave (0.4s on, 0.2s off)`, 'err');
+  } catch(e) {
+    console.error('Buzzer error:', e);
+    log('BUZZER', 'Audio blocked by browser policy: ' + e.message, 'err');
+  }
+}
+
+function stopBuzzer(notify = true) {
+  isBuzzerActive = false;
+  if (buzzerCountdownInterval) {
+    clearInterval(buzzerCountdownInterval);
+    buzzerCountdownInterval = null;
+  }
+  if (buzzerBeepTimer) {
+    clearTimeout(buzzerBeepTimer);
+    buzzerBeepTimer = null;
+  }
+  if (buzzerOsc) {
+    try {
+      buzzerOsc.stop();
+      buzzerOsc.disconnect();
+    } catch(e) {}
+    buzzerOsc = null;
+  }
+  if (buzzerGain) {
+    try {
+      buzzerGain.disconnect();
+    } catch(e) {}
+    buzzerGain = null;
+  }
+
+  const stopBtn = document.getElementById('btn-stop-buzzer');
+  const badge = document.getElementById('buzzer-countdown-badge');
+  if (stopBtn) stopBtn.style.display = 'none';
+  if (badge) badge.style.display = 'none';
+
+  const fsCount = document.getElementById('fs-buzzer-countdown');
+  if (fsCount) fsCount.textContent = 'Alarm: Stopped';
+
+  if (notify) {
+    log('BUZZER', 'Buzzer stopped. Audio nodes cleaned up.', 'ok');
+  }
+}
+
+function testBuzzerSound() {
+  try {
+    const ctx = getBuzzerAudioContext();
+    if (!ctx) return;
+    stopBuzzer(false);
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const now = ctx.currentTime;
+    const vol = buzzerMuted ? 0.3 : buzzerVolume;
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(750, now);
+
+    // Two rapid test beeps (0.3s on, 0.15s off, 0.3s on)
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.setValueAtTime(vol, now + 0.05);
+    gain.gain.setValueAtTime(0.0001, now + 0.35);
+    gain.gain.setValueAtTime(vol, now + 0.50);
+    gain.gain.setValueAtTime(0.0001, now + 0.80);
+
     osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    
+    gain.connect(ctx.destination);
     osc.start(now);
-    osc.stop(now + 0.20);
-  } catch (e) {
-    // Audio context initialization protected
+    osc.stop(now + 0.85);
+    log('AUDIO', 'Test alarm sound played.', 'ok');
+  } catch(e) {
+    alert('Browser audio blocked: ' + e.message + '. Click anywhere on the page to enable sound.');
+  }
+}
+
+function setBuzzerVolume(val) {
+  buzzerVolume = parseFloat(val);
+  if (buzzerGain && isBuzzerActive && isBeepState && !buzzerMuted && buzzerAudioCtx) {
+    buzzerGain.gain.setValueAtTime(buzzerVolume, buzzerAudioCtx.currentTime);
   }
 }
 
 function toggleMuteSound() {
-  soundMuted = !soundMuted;
+  buzzerMuted = !buzzerMuted;
   const btn = document.getElementById('btn-sound-toggle');
   if (btn) {
-    btn.textContent = soundMuted ? 'Unmute Alert Sound' : 'Mute Alert Sound';
-    btn.className = soundMuted ? 'btn btn-gray btn-sm sound-muted' : 'btn btn-gray btn-sm';
+    btn.textContent = buzzerMuted ? 'Unmute' : 'Mute';
+    btn.className = buzzerMuted ? 'btn btn-gray btn-sm sound-muted' : 'btn btn-gray btn-sm';
   }
-  log('AUDIO', soundMuted ? 'Alert sounds muted.' : 'Alert sounds unmuted.', 'ok');
+  if (buzzerGain && isBuzzerActive && buzzerAudioCtx) {
+    const target = buzzerMuted ? 0.0001 : (isBeepState ? buzzerVolume : 0.0001);
+    buzzerGain.gain.setValueAtTime(target, buzzerAudioCtx.currentTime);
+  }
+  log('AUDIO', buzzerMuted ? 'Alert sounds muted.' : 'Alert sounds unmuted.', 'ok');
+}
+
+// ── FULL-SCREEN RED ERROR SIGNAL OVERLAY (PHASE 3) ────────────────────────
+function showFullscreenError(err, line, col, snippet) {
+  const overlay = document.getElementById('fullscreen-error-overlay');
+  if (!overlay) return;
+  document.getElementById('fs-err-title').textContent = 'DEV-C++ COMPILER ERROR DETECTED';
+  document.getElementById('fs-err-badge').textContent = (err.type || 'SYNTAX ERROR').replace(/_/g, ' ');
+  document.getElementById('fs-err-meta').textContent = `Target: main.cpp:${line || err.line || 1}:${col || err.column || 1}`;
+  document.getElementById('fs-err-snippet').textContent = err.gcc_formatted || `main.cpp:${line||1}:${col||1}: error: ${err.message || 'Syntax error'}
+   ${line||1} | ${snippet || ''}
+       | ^`;
+  overlay.style.display = 'flex';
+}
+
+function dismissFullscreenError() {
+  const overlay = document.getElementById('fullscreen-error-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function viewFixFromOverlay() {
+  dismissFullscreenError();
+  stopBuzzer(false);
+  switchTab('repair');
 }
 
 function dismissDangerAlert() {
@@ -1947,7 +2236,163 @@ function dismissDangerAlert() {
   if (banner) banner.style.display = 'none';
 }
 
-// ── Automatic Syntax Completion & Smart Indentation ─────────────────────────
+// ── DYNAMIC PERFORMANCE GRAPHS (PHASE 4) ──────────────────────────────────
+let chartErrorDist = null;
+let chartErrorsRun = null;
+let chartConfidenceTime = null;
+
+function renderAnalyticsCharts(perfStore) {
+  if (!perfStore || !window.Chart) return;
+  const history = perfStore.history || [];
+
+  // 1. Error Type Distribution
+  const errCounts = {};
+  for (const h of history) {
+    const et = h.error_type || 'CLEAN_SYNTAX';
+    errCounts[et] = (errCounts[et] || 0) + 1;
+  }
+  const distCanvas = document.getElementById('chart-error-dist');
+  if (distCanvas) {
+    if (chartErrorDist) chartErrorDist.destroy();
+    const labels = Object.keys(errCounts);
+    const dataVals = Object.values(errCounts);
+    const colors = labels.map(l => l === 'CLEAN_SYNTAX' ? '#22c55e' : '#ef4444');
+    chartErrorDist = new Chart(distCanvas, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Frequency',
+          data: dataVals,
+          backgroundColor: colors,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          title: { display: true, text: 'Error Type Distribution Across Runs', color: '#0f172a', font: { weight: 700 } }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } },
+          x: { ticks: { autoSkip: false, maxRotation: 40, minRotation: 0, font: { size: 10 } } }
+        }
+      }
+    });
+  }
+
+  // 2. Errors per Run History
+  const runCanvas = document.getElementById('chart-errors-run');
+  if (runCanvas) {
+    if (chartErrorsRun) chartErrorsRun.destroy();
+    const recent = history.slice(-15);
+    const runLabels = recent.map((_, idx) => `Run #${history.length - recent.length + idx + 1}`);
+    const errCountsRun = recent.map(h => h.errors_count !== undefined ? h.errors_count : (h.has_errors ? 1 : 0));
+    chartErrorsRun = new Chart(runCanvas, {
+      type: 'line',
+      data: {
+        labels: runLabels,
+        datasets: [{
+          label: 'Errors Found',
+          data: errCountsRun,
+          borderColor: '#dc2626',
+          backgroundColor: 'rgba(220, 38, 38, 0.1)',
+          fill: true,
+          tension: 0.25,
+          pointRadius: 4,
+          pointBackgroundColor: '#dc2626'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true },
+          title: { display: true, text: 'Errors Detected Per Check Run', color: '#0f172a', font: { weight: 700 } }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+  }
+
+  // 3. Classifier Confidence & Latency
+  const confCanvas = document.getElementById('chart-confidence-time');
+  if (confCanvas) {
+    if (chartConfidenceTime) chartConfidenceTime.destroy();
+    const recent = history.slice(-15);
+    const runLabels = recent.map((_, idx) => `Run #${history.length - recent.length + idx + 1}`);
+    const confData = recent.map(h => h.confidence || 98.0);
+    const timeData = recent.map(h => h.detection_time || 5.0);
+
+    chartConfidenceTime = new Chart(confCanvas, {
+      type: 'line',
+      data: {
+        labels: runLabels,
+        datasets: [
+          {
+            label: 'ML Confidence (%)',
+            data: confData,
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.08)',
+            yAxisID: 'yConf',
+            tension: 0.25,
+            pointRadius: 4
+          },
+          {
+            label: 'Latency (ms)',
+            data: timeData,
+            borderColor: '#16a34a',
+            borderDash: [5, 5],
+            yAxisID: 'yTime',
+            tension: 0.25,
+            pointRadius: 3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          title: { display: true, text: 'Classifier Confidence & Detection Latency', color: '#0f172a', font: { weight: 700 } }
+        },
+        scales: {
+          yConf: {
+            type: 'linear',
+            position: 'left',
+            min: 70,
+            max: 100,
+            title: { display: true, text: 'Confidence %' }
+          },
+          yTime: {
+            type: 'linear',
+            position: 'right',
+            beginAtZero: true,
+            title: { display: true, text: 'Latency (ms)' },
+            grid: { drawOnChartArea: false }
+          }
+        }
+      }
+    });
+  }
+}
+
+async function fetchAndRenderAnalytics() {
+  try {
+    const res = await fetch('/performance-data');
+    if (res.ok) {
+      const data = await res.json();
+      renderAnalyticsCharts(data);
+    }
+  } catch(e) {
+    console.warn('Could not load analytics:', e);
+  }
+}
+
+// ── VS CODE STYLE EDITOR FEATURES (PHASE 5) ──────────────────────────────
 function setupEditorAutoCompletion() {
   const ta = document.getElementById('code-editor');
   if (!ta) return;
@@ -1977,6 +2422,22 @@ function setupEditorAutoCompletion() {
       syncLines();
       debounceRiskCheck();
       return;
+    }
+
+    // Auto-close <tag> -> </tag> when typing '>'
+    if (e.key === '>') {
+      const lineUpToCursor = val.substring(0, start);
+      const tagMatch = lineUpToCursor.match(/<([a-zA-Z_][a-zA-Z0-9_-]*)$/);
+      if (tagMatch) {
+        e.preventDefault();
+        const tagName = tagMatch[1];
+        const closeTag = `></${tagName}>`;
+        ta.value = val.substring(0, start) + closeTag + val.substring(end);
+        ta.selectionStart = ta.selectionEnd = start + 1; // cursor right between > and </
+        syncLines();
+        debounceRiskCheck();
+        return;
+      }
     }
 
     // Backspace: delete matching pair
@@ -2009,7 +2470,7 @@ function setupEditorAutoCompletion() {
       const currentLine = val.substring(lineStart, start);
       const indentMatch = currentLine.match(/^\s*/);
       const currentIndent = indentMatch ? indentMatch[0] : '';
-      
+
       const prevChar = val[start - 1];
       const nextChar = val[start];
 
@@ -2040,6 +2501,14 @@ function setupEditorAutoCompletion() {
       }
     }
   });
+
+  ta.addEventListener('keyup', checkBracketMatch);
+  ta.addEventListener('click', checkBracketMatch);
+}
+
+function checkBracketMatch() {
+  const ta = document.getElementById('code-editor');
+  if (!ta) return;
 }
 
 // ── Code Formatter ─────────────────────────────────────────────────────────
@@ -2051,7 +2520,7 @@ function formatCode() {
   const lines = code.split('\n');
   let indent = 0;
   const formatted = [];
-  
+
   for (let rawLine of lines) {
     let line = rawLine.trim();
     if (!line) {
@@ -2060,13 +2529,13 @@ function formatCode() {
       }
       continue;
     }
-    
+
     if (line.startsWith('}')) {
       indent = Math.max(0, indent - 1);
     }
-    
+
     formatted.push('    '.repeat(indent) + line);
-    
+
     let openCount = (line.match(/{/g) || []).length;
     let closeCount = (line.match(/}/g) || []).length;
     if (line.endsWith('{') && !line.startsWith('}')) {
@@ -2077,7 +2546,7 @@ function formatCode() {
       indent = Math.max(0, indent - (closeCount - openCount));
     }
   }
-  
+
   ta.value = formatted.join('\n');
   syncLines();
   log('FORMAT', 'Formatted C++ code with standard 4-space indentation.', 'ok');
@@ -2085,6 +2554,7 @@ function formatCode() {
 
 // ── Real-time Risk Debounce ────────────────────────────────────────────────
 let riskCheckTimer = null;
+let lastRiskSignature = '';
 function onEditorInput() {
   syncLines();
   debounceRiskCheck();
@@ -2126,7 +2596,6 @@ function renderCriticalRisks(riskData) {
   const countHigh = risks.filter(r => r.severity === 'HIGH').length;
   const countWarn = risks.filter(r => r.severity === 'WARNING').length;
 
-  // Update metrics
   const elCrit = document.getElementById('risk-count-critical');
   const elHigh = document.getElementById('risk-count-high');
   const elWarn = document.getElementById('risk-count-warning');
@@ -2140,7 +2609,6 @@ function renderCriticalRisks(riskData) {
   }
   setBadge('risks', countCrit + countHigh);
 
-  // Banner display for CRITICAL and HIGH
   if (banner) {
     if (highest === 'CRITICAL' || highest === 'HIGH') {
       const primary = risks[0];
@@ -2152,20 +2620,12 @@ function renderCriticalRisks(riskData) {
       document.getElementById('danger-alert-impact').textContent = primary.impact;
       document.getElementById('danger-alert-solution').innerHTML = '<strong>Recommended Solution:</strong> ' + esc(primary.solution);
       banner.style.display = 'block';
-
-      // Play sound only if signature changed (deduplication)
-      const sig = primary.id + '_' + primary.line;
-      if (sig !== lastRiskSignature) {
-        lastRiskSignature = sig;
-        playDangerSound(primary.severity);
-      }
     } else {
       banner.style.display = 'none';
       lastRiskSignature = '';
     }
   }
 
-  // Render list in Risk Guard Section
   const container = document.getElementById('risk-list-container');
   if (container) {
     if (risks.length === 0) {
@@ -2196,24 +2656,37 @@ function renderCriticalRisks(riskData) {
 
 // ── Review & Apply Code Repair (Never silently overwrites!) ────────────────
 function confirmApplyRepair() {
-  if (!state.repair || !state.repair.repair || !state.repair.repair.healed_code) {
+  const codeToApply = state.correctedCode || state.repair?.repair?.corrected_code || state.repair?.repair?.healed_code;
+  if (!codeToApply) {
     alert('No verified repaired code available to apply.');
     return;
   }
   const confirmed = confirm(
     'Apply Proposed Code Fix?\n\n' +
-    'This will replace the contents of your active code editor with the repaired implementation.\n' +
-    'You can review the unified diff in the Code Repair tab before applying.\n\n' +
+    'This will replace the contents of your active code editor with the verified repaired code.\n' +
+    'You can review the side-by-side comparison in the Code Repair tab.\n\n' +
     'Proceed with updating the editor?'
   );
   if (confirmed) {
-    document.getElementById('code-editor').value = state.repair.repair.healed_code;
+    document.getElementById('code-editor').value = codeToApply;
     syncLines();
     switchTab('editor');
     debounceRiskCheck();
     log('REPAIR', 'Applied verified code repair into editor.', 'ok');
   }
 }
+
+// ── PAGE BOOTSTRAP INITIALIZATION ─────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  setupEditorAutoCompletion();
+  syncLines();
+  fetchAndRenderAnalytics();
+});
+
+// Also run immediately in case DOMContentLoaded has already fired
+setupEditorAutoCompletion();
+syncLines();
+fetchAndRenderAnalytics();
 
 </script>
 </body>

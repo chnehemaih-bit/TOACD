@@ -499,7 +499,7 @@ class AgenticRepairEngine:
                 from cpp_parser import analyze_gcc_errors
                 gcc_diags = analyze_gcc_errors(code_str)
                 for gd in gcc_diags:
-                    if gd.get("severity") == "ERROR":
+                    if gd.get("severity") == "ERROR" or gd.get("type") in ("WRONG_OPERATOR", "MISSING_PRINTF_QUOTES"):
                         gcc_errors.append(f"[GCCError @ line {gd.get('line',0)}] {gd.get('message')}")
             except Exception:
                 pass
@@ -608,8 +608,9 @@ class AgenticRepairEngine:
                     lines[i] = code_part.rstrip() + "; " + comment_part.strip() + "\n"
                 else:
                     lines[i] = code_part.rstrip() + ";\n"
-                self.log_thought(turn, "Action",
-                                 f"Added missing ';' to line {i+1}: '{stripped}'")
+                msg = f"Added missing ';' at line {i+1}"
+                self.log_thought(turn, "Action", f"Added missing ';' to line {i+1}: '{stripped}'")
+                self.changes_log.append({"line": i+1, "description": msg})
                 patched = True
 
         # ── Strategy 3: Unmatched Braces ───────────────────────────────────────
@@ -621,8 +622,9 @@ class AgenticRepairEngine:
             if open_b > close_b:
                 for _ in range(open_b - close_b):
                     lines.append("}\n")
-                self.log_thought(turn, "Action",
-                                 f"Added {open_b - close_b} missing closing brace(s) '}}' to balance scope.")
+                msg = f"Added {open_b - close_b} missing closing brace(s) '}}' to balance scope"
+                self.log_thought(turn, "Action", msg)
+                self.changes_log.append({"line": len(lines), "description": msg})
                 patched = True
             elif close_b > open_b:
                 lines.insert(0, "{\n")
@@ -640,8 +642,9 @@ class AgenticRepairEngine:
                     s = line.rstrip("\r\n")
                     lines[i] = (s.replace("{", ") {") + "\n") if ("{" in s and ")" not in s) \
                                 else (s + (")" * (op - cl)) + "\n")
-                    self.log_thought(turn, "Action",
-                                     f"Balanced missing ')' on line {i+1}.")
+                    msg = f"Balanced missing ')' at line {i+1}"
+                    self.log_thought(turn, "Action", msg)
+                    self.changes_log.append({"line": i+1, "description": msg})
                     patched = True
 
         # ── Strategy 5: Invalid Assignment (5 = x  →  x = 5) — ALL lines ─────
@@ -668,8 +671,9 @@ class AgenticRepairEngine:
                 if quotes % 2 == 1:
                     s = line.rstrip("\r\n")
                     lines[i] = (s[:-1] + '";\n') if s.endswith(";") else (s + '"\n')
-                    self.log_thought(turn, "Action",
-                                     f"Closed unterminated string on line {i+1}.")
+                    msg = f"Closed unterminated string on line {i+1}"
+                    self.log_thought(turn, "Action", msg)
+                    self.changes_log.append({"line": i+1, "description": msg})
                     patched = True
 
         # ── Strategy 7: Fix Identifier Typos & Semantic Suggestions ──────────
@@ -681,12 +685,15 @@ class AgenticRepairEngine:
                 wrong_id, right_id = m_sugg.groups()
                 if wrong_id in KEYWORD_TYPO_MAP:
                     right_id = KEYWORD_TYPO_MAP[wrong_id]
-                elif wrong_id in ('count', 'sum', 'total', 'idx', 'val', 'ans', 'res'):
-                    continue  # do not overwrite common variable names with builtins
+                else:
+                    # Do not blindly replace user-declared variables
+                    continue
                 for i, line in enumerate(lines):
                     if re.search(r'\b' + re.escape(wrong_id) + r'\b', line):
                         lines[i] = re.sub(r'\b' + re.escape(wrong_id) + r'\b', right_id, line)
-                        self.log_thought(turn, "Action", f"Repaired semantic typo '{wrong_id}' -> '{right_id}' on line {i+1}.")
+                        msg = f"Repaired semantic typo '{wrong_id}' -> '{right_id}' on line {i+1}"
+                        self.log_thought(turn, "Action", msg)
+                        self.changes_log.append({"line": i+1, "description": msg})
                         patched = True
 
         # 2. Heuristic repairs for common C++ typos
@@ -719,7 +726,9 @@ class AgenticRepairEngine:
 
             if line != orig_line:
                 lines[i] = line
-                self.log_thought(turn, "Action", f"Repaired typo on line {i+1}: '{line.strip()}'")
+                msg = f"Repaired misspelled keyword on line {i+1}: '{line.strip()}'"
+                self.log_thought(turn, "Action", msg)
+                self.changes_log.append({"line": i+1, "description": msg})
                 patched = True
 
         # ── Strategy 8: Fix Missing Parentheses in if/else if conditionals ──
@@ -730,7 +739,9 @@ class AgenticRepairEngine:
             if m_if:
                 indent_if, cond, rest = m_if.groups()
                 lines[i] = f"{indent_if} ({cond.strip()}){rest}\n"
-                self.log_thought(turn, "Action", f"Added parentheses to 'if' condition on line {i+1}.")
+                msg = f"Added missing parentheses to conditional on line {i+1}"
+                self.log_thought(turn, "Action", msg)
+                self.changes_log.append({"line": i+1, "description": msg})
                 patched = True
 
         # ── Strategy 9: Fix Array Declarations (e.g. int arr[10; -> int arr[10];) ──
@@ -740,7 +751,9 @@ class AgenticRepairEngine:
                     lines[i] = re.sub(r'\[([^\]\n]+);', r'[\1];', line)
                 else:
                     lines[i] = line.rstrip("\r\n") + "];\n"
-                self.log_thought(turn, "Action", f"Closed missing array bracket ']' on line {i+1}.")
+                msg = f"Closed missing array bracket ']' on line {i+1}"
+                self.log_thought(turn, "Action", msg)
+                self.changes_log.append({"line": i+1, "description": msg})
                 patched = True
 
         # ── Strategy 10: Fix Class, Namespace, and Function missing braces ───
@@ -861,6 +874,7 @@ class AgenticRepairEngine:
             }
 
         self.thoughts = []
+        self.changes_log = []
         
         # Turn 0: Perception
         self.log_thought(
@@ -943,6 +957,8 @@ class AgenticRepairEngine:
 
         return {
             "success": success,
+            "recheck_passed": success,
+            "errors_remaining": len(final_errors) if not success else 0,
             "turns_taken": turn if success else self.MAX_TURNS,
             "original_code": source_code,
             "healed_code": healed_code,
